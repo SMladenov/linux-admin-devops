@@ -15,17 +15,17 @@ if [ "$1" != "stop" ] && [ "$1" != "start" ] && [ "$1" != "status" ]; then
 	exit 1
 fi
 
-servicesStop="ion \
-sync_to_dmois_priority.service \
-sync_to_dmois.service \
-kill_auth_rem.service \
-ccb-hive-kac.service"
+servicesStop="service1 \
+service2.service \
+service3.service \
+service4.service \
+service5.service"
 
-servicesStart="sync_to_dmois_priority.service \
-sync_to_dmois.service \
-kill_auth_rem.service \
-ccb-hive-kac.service \
-ion"
+servicesStart="service5.service \
+service4.service \
+service3.service \
+service2.service \
+service1"
 
 if [ "$1" = "status" ]; then
 	#for service in $servicesStart; do
@@ -54,9 +54,5 @@ if [ "$1" = "start" ]; then
 		fi
 	done
 fi
-
-
-
-
 
 
