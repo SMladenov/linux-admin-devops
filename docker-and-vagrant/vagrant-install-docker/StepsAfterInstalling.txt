@@ -1,0 +1,22 @@
+vagrant up
+vagrant ssh
+docker container run -it --name homework shekeriev/animal-stories
+ctr+P+Q
+docker container attach homework
+find . -type f -iname 'animal-stories.*'
+/usr/include/animal-stories.txt
+
+root@03609dd195f6:/usr/include# grep -ie 'tiger' /usr/include/animal-stories.txt
+green tigers are weak and like tomatoes
+
+root@03609dd195f6:/usr/include# cat /usr/include/animal-stories.txt | awk '{print $1}' | sort --reverse | uniq
+yellow
+white
+purple
+pink
+orange
+green
+gray
+brown
+blue
+black
