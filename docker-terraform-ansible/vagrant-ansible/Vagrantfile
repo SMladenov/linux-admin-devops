@@ -1,0 +1,46 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+    
+  config.ssh.insert_key = false
+
+  config.vm.define "web" do |web|
+    web.vm.box = "shekeriev/debian-12.11"
+    web.vm.hostname = "web.homework"
+    web.vm.network "private_network", ip: "192.168.100.101"
+    web.vm.network "forwarded_port", guest: 80, host: 8085
+	web.vm.provider :virtualbox do |vb|
+            vb.customize ["modifyvm", :id, "--memory", "1024"]
+			vb.customize ["modifyvm", :id, "--cpus", "1"]
+	end
+  end
+  
+  config.vm.define "db" do |db|
+    db.vm.box = "shekeriev/almalinux-9.6"
+    db.vm.hostname = "db.homework"
+    db.vm.network "private_network", ip: "192.168.100.102"
+	db.vm.provider :virtualbox do |vb|
+            vb.customize ["modifyvm", :id, "--memory", "1024"]
+			vb.customize ["modifyvm", :id, "--cpus", "1"]
+	end
+  end
+  
+    config.vm.define "ans" do |ans|
+    ans.vm.box = "shekeriev/almalinux-9.6"
+    ans.vm.hostname = "ans.homework"
+    ans.vm.network "private_network", ip: "192.168.100.100"
+    ans.vm.synced_folder "ansibleFiles/", "/home/vagrant/ansible/"
+	ans.vm.provision "shell", path: "setup_ans.sh", privileged: false
+    ans.vm.provision "shell", inline: <<EOS
+sleep 4
+sudo -u vagrant mkdir /home/vagrant/ansibleExecute/
+sudo -u vagrant cp /home/vagrant/ansible/* /home/vagrant/ansibleExecute/.
+sudo -u vagrant chmod -R 755 /home/vagrant/ansibleExecute/
+sleep 4
+cd /home/vagrant/ansibleExecute/ && sudo -u vagrant ansible-playbook playbook.yaml
+EOS
+	
+  end
+ 
+end

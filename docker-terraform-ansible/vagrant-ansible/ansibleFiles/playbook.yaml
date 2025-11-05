@@ -1,0 +1,67 @@
+---
+- hosts: webservers
+  become: true
+
+  tasks:
+    - name: Install Apache2 on Debian
+      apt: name=apache2 state=present
+      when: ansible_os_family == "Debian"
+
+    - name: Install PHP and Modules
+      apt: name=php,php-mysqlnd state=present
+      when: ansible_os_family == "Debian"
+
+    - name: Start Apache2 and enable it
+      service: name=apache2 state=started enabled=true
+      when: ansible_os_family == "Debian"
+
+    - name: Removing default Apache2 index.html
+      file: path=/var/www/html/index.html state=absent
+
+    - name: Copy the Web app
+      copy: src=/bgapp/bgapp/web/ dest=/var/www/html/
+
+    - name: Restarting the Apache2
+      service: name=apache2 state=restarted
+      when: ansible_os_family == "Debian"
+
+    - name: Add /etc/hosts entries
+      lineinfile: path=/etc/hosts line="192.168.100.101 web.homework web" state=present
+
+    - lineinfile: path=/etc/hosts line="192.168.100.102 db.homework db" state=present
+
+- hosts: dbservers
+  become: true
+
+  tasks:
+    - name: Install MariaDB on AL
+      dnf: name=mariadb,mariadb-server state=present
+      when: ansible_os_family == "RedHat"
+
+    - name: Open Firewalld port
+      firewalld: port=3306/tcp state=enabled permanent=yes immediate=yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Start and Enable MariaDB
+      service: name=mariadb state=started enabled=true
+      when: ansible_os_family == "RedHat"
+
+    - name: Copy the SQL script for the DB
+      copy: src=/bgapp/bgapp/db/db_setup.sql dest=/home/vagrant/
+
+    - name: Execute the SQL script
+      shell: "mysql -u root < /home/vagrant/db_setup.sql"
+      args:
+        executable: /bin/bash
+      when: ansible_os_family == "RedHat"
+
+    - name: Restart MariaDB
+      service: name=mariadb state=restarted
+      when: ansible_os_family == "RedHat"
+
+    - name: Add /etc/hosts entries
+      lineinfile: path=/etc/hosts line="192.168.100.101 web.homework web" state=present
+
+    - lineinfile: path=/etc/hosts line="192.168.100.102 db.homework db" state=present
+
+
