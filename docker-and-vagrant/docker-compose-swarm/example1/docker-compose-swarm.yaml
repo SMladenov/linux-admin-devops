@@ -1,0 +1,26 @@
+services:
+    web:
+        image: mladenov1990/homework-web
+        deploy:
+            replicas: 3
+        ports:
+            - 8080:80
+        volumes:
+            - "/home/vagrant/demo-docker-app1/homework-demo/web:/usr/share/nginx/html:ro"
+        networks:
+            - homework-net
+    db:
+        image: mladenov1990/homework-db
+        networks:
+            - homework-net
+        environment:
+            MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+        secrets:
+            - db_root_password
+secrets:
+    db_root_password:
+        external: true
+networks:
+    homework-net:
+
+

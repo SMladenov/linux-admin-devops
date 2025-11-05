@@ -1,0 +1,21 @@
+
+FROM almalinux:9.6
+#FROM php:8.4.8-apache
+
+LABEL description="Web Container Dockerfile Homework"
+LABEL version="1.0"
+LABEL maintainer="SoftUni Student"
+
+RUN dnf update -y && dnf upgrade -y && dnf install nginx -y && dnf -y install php php-fpm php-cli php-mysqlnd php-pdo
+RUN rm -rf /var/lib/apt/lists/*
+
+COPY web-configs/entrypoint.sh /entrypoint.sh
+COPY web-configs/default-php.conf /etc/nginx/conf.d/.
+RUN chmod +x /entrypoint.sh
+
+#Module to connect to db
+#RUN docker-php-ext-install pdo_mysql
+
+#ENTRYPOINT ["/usr/sbin/nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]
+

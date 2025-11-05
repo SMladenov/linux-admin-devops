@@ -1,0 +1,5 @@
+FROM mariadb:10.11
+
+#Add the initialization script
+ADD ./db/db_setup.sql /docker-entrypoint-initdb.d/init.sql
+

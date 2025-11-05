@@ -1,0 +1,10 @@
+FROM php:8.4.8-apache
+
+LABEL description="Web Container Dockerfile"
+LABEL version="1.0"
+LABEL maintainer="SoftUni Student"
+
+#Module to connect to db
+RUN docker-php-ext-install pdo_mysql
+
+
