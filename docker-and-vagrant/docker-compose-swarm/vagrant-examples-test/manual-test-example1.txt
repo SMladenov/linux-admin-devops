@@ -1,0 +1,101 @@
+
+docker swarm init --advertise-addr 192.168.99.101
+#Join Workers - Docker2 and Docker3
+
+#Docker2
+ssh vagrant@192.168.99.102
+docker swarm join \
+--token SWMTKN-1-1em9z9j8k7n8qv3qi35u5a3zp9rmgaruqo6o35obblp9w9p5tx-08dr78cmuod6bgzfk2koleiwc \
+--advertise-addr 192.168.99.102 192.168.99.101:2377
+exit
+
+#Docker3
+ssh vagrant@192.168.99.103
+docker swarm join \
+--token SWMTKN-1-1em9z9j8k7n8qv3qi35u5a3zp9rmgaruqo6o35obblp9w9p5tx-08dr78cmuod6bgzfk2koleiwc \
+--advertise-addr 192.168.99.103 192.168.99.101:2377
+exit
+#Back to Docker1, where we have Docker Client
+
+
+
+#Docker1
+git config --global user.name "SMladenov"
+git config --global user.email "mladenov1990gmail.com"
+git config --list
+git config --global --list
+git clone https://github.com/SMladenov/demo-docker-app1.git
+
+echo 12345 >> db_root_password.txt && chmod 700 db_root_password.txt
+docker secret create db_root_password db_root_password.txt
+docker secret ls
+
+ssh vagrant@docker2 -- git clone https://github.com/SMladenov/demo-docker-app1.git
+ssh vagrant@docker3 -- git clone https://github.com/SMladenov/demo-docker-app1.git
+docker stack deploy -c docker-compose-swarm.yaml homeworkapp
+
+#same for 192.168.99.102 and 192.168.99.103
+[vagrant@docker1 homework-demo]$ curl http://192.168.99.101:8080
+<html>
+  <head>
+    <meta charset="UTF-8"/>
+    <title>Факти за България</title>
+  </head>
+  <body>
+    <div align="center">
+      <h1>Факти за България</h1>
+      <img src="bulgaria-map.png" />
+      <table>
+        <tr>
+          <td>Площ</td>
+          <td></td>
+          <td>110 993.6 кв.км.</td>
+        </tr>
+        <tr>
+          <td>Население</td>
+          <td></td>
+          <td>7 101 859</td>
+        </tr>
+        <tr>
+          <td>Столица</td>
+          <td></td>
+          <td>София</td>
+        </tr>
+      </table>
+      <br />
+      <h1>Големи градове</h1>
+      <table>
+<tr><td>София</td><td align="right">1236047</td></tr>
+<tr><td>Пловдив</td><td align="right">343424</td></tr>
+<tr><td>Варна</td><td align="right">335177</td></tr>
+<tr><td>Бургас</td><td align="right">202766</td></tr>
+<tr><td>Русе</td><td align="right">144936</td></tr>
+<tr><td>Стара Загора</td><td align="right">136781</td></tr>
+<tr><td>Плевен</td><td align="right">98467</td></tr>
+<tr><td>Сливен</td><td align="right">87322</td></tr>
+<tr><td>Добрич</td><td align="right">85402</td></tr>
+<tr><td>Шумен</td><td align="right">76967</td></tr>
+      </table>
+    </div>
+  </body>
+</html>
+
+
+[vagrant@docker1 homework-demo]$ docker stack ps homeworkapp
+ID             NAME                IMAGE                              NODE              DESIRED STATE   CURRENT STATE           ERROR     PORTS
+oys0g0kuslpu   homeworkapp_db.1    mladenov1990/homework-db:latest    docker1.do1.lab   Running         Running 3 minutes ago
+nrjzmpug4wrx   homeworkapp_web.1   mladenov1990/homework-web:latest   docker2.do1.lab   Running         Running 3 minutes ago
+vx414ueskph7   homeworkapp_web.2   mladenov1990/homework-web:latest   docker3.do1.lab   Running         Running 3 minutes ago
+8mr3czrlro7q   homeworkapp_web.3   mladenov1990/homework-web:latest   docker1.do1.lab   Running         Running 3 minutes ago
+
+[vagrant@docker1 homework-demo]$ docker stack services homeworkapp
+ID             NAME              MODE         REPLICAS   IMAGE                              PORTS
+pg43rngu4srt   homeworkapp_db    replicated   1/1        mladenov1990/homework-db:latest
+r2sekucadmb2   homeworkapp_web   replicated   3/3        mladenov1990/homework-web:latest   *:8080->80/tcp
+
+docker stack rm homeworkapp
+docker secret rm db_root_password
+vagrant destroy --force
+
+
+
