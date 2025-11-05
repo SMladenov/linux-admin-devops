@@ -5,14 +5,14 @@ docker swarm init --advertise-addr 192.168.99.101
 #Docker2
 ssh vagrant@192.168.99.102
 docker swarm join \
---token SWMTKN-1-1em9z9j8k7n8qv3qi35u5a3zp9rmgaruqo6o35obblp9w9p5tx-08dr78cmuod6bgzfk2koleiwc \
+--token <value> \
 --advertise-addr 192.168.99.102 192.168.99.101:2377
 exit
 
 #Docker3
 ssh vagrant@192.168.99.103
 docker swarm join \
---token SWMTKN-1-1em9z9j8k7n8qv3qi35u5a3zp9rmgaruqo6o35obblp9w9p5tx-08dr78cmuod6bgzfk2koleiwc \
+--token <value> \ 
 --advertise-addr 192.168.99.103 192.168.99.101:2377
 exit
 #Back to Docker1, where we have Docker Client
