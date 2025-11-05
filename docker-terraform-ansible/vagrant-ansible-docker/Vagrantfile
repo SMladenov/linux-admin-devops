@@ -1,0 +1,40 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+    
+  config.ssh.insert_key = false
+  
+  config.vm.define "docker" do |docker|
+    docker.vm.box = "shekeriev/almalinux-9.6"
+    docker.vm.hostname = "docker.homework"
+    docker.vm.network "private_network", ip: "192.168.100.101"
+    docker.vm.network "forwarded_port", guest: 8080, host: 8085
+	docker.vm.provider :virtualbox do |vb|
+            vb.customize ["modifyvm", :id, "--memory", "1024"]
+			vb.customize ["modifyvm", :id, "--cpus", "1"]
+	end
+  end
+  
+    config.vm.define "ans" do |ans|
+    ans.vm.box = "shekeriev/almalinux-9.6"
+    ans.vm.hostname = "ans.homework"
+    ans.vm.network "private_network", ip: "192.168.100.100"
+    ans.vm.synced_folder "ansibleFiles/", "/ansibleFiles/"
+	ans.vm.synced_folder "dockerFiles/", "/dockerFiles/"
+	ans.vm.provision "shell", path: "setup_ans.sh", privileged: false
+    ans.vm.provision "shell", inline: <<EOS
+sleep 4
+sudo -u vagrant mkdir /home/vagrant/ansibleFiles/
+sudo -u vagrant mkdir /home/vagrant/dockerFiles/
+sudo -u vagrant cp /ansibleFiles/* /home/vagrant/ansibleFiles/.
+sudo -u vagrant cp /dockerFiles/* /home/vagrant/dockerFiles/.
+sudo -u vagrant chmod -R 755 /home/vagrant/ansibleFiles/
+sudo -u vagrant chmod -R 755 /home/vagrant/dockerFiles/
+sleep 4
+cd /home/vagrant/ansibleFiles/ && sudo -u vagrant ansible-playbook playbook.yaml
+EOS
+	
+  end
+ 
+end

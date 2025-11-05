@@ -1,0 +1,52 @@
+---
+- hosts: dockerhosts
+  become: true
+
+  tasks:
+    - name: Add Docker repository
+      dnf: name=dnf-plugins-core state=present
+      when: ansible_os_family == "RedHat"
+     
+    - command: dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+      when: ansible_os_family == "RedHat"
+
+    - name: Install Docker
+      dnf: name=docker-ce,docker-ce-cli,containerd.io,docker-buildx-plugin,docker-compose-plugin state=present
+      when: ansible_os_family == "RedHat"
+
+    - name: Start and Enable Docker
+      service: name=docker state=started enabled=true
+      when: ansible_os_family == "RedHat"
+
+    - name: Add vagrant user to docker group
+      command: usermod -aG docker vagrant
+
+    - name: Open Firewalld port
+      firewalld: port=8080/tcp state=enabled permanent=yes immediate=yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Make dockerFiles directory
+      shell: "mkdir -p /home/vagrant/dockerFiles && chmod -R 755 /home/vagrant/dockerFiles"
+      args:
+        executable: /bin/bash
+
+    - name: Copy the Dockerfile + index.html
+      copy: src=/home/vagrant/dockerFiles/Dockerfile.web dest=/home/vagrant/dockerFiles/Dockerfile.web
+
+    - copy: src=/home/vagrant/dockerFiles/index.html dest=/home/vagrant/dockerFiles/index.html
+
+    - copy: src=/home/vagrant/dockerFiles/containerToRun.sh dest=/home/vagrant/dockerFiles/containerToRun.sh mode=755
+
+    - name: run the script to Build the Image from the Dockerfile
+      shell: ./containerToRun.sh
+      args:
+        executable: /bin/bash
+        chdir: /home/vagrant/dockerFiles
+      when: ansible_os_family == "RedHat"
+#
+#    - name: Add /etc/hosts entries
+#      lineinfile: path=/etc/hosts line="192.168.100.101 web.homework web" state=present
+#
+#    - lineinfile: path=/etc/hosts line="192.168.100.102 db.homework db" state=present
+
+

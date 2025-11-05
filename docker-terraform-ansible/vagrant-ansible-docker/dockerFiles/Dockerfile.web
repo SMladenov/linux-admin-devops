@@ -1,0 +1,15 @@
+FROM almalinux:9.6
+
+LABEL description="Web Container Dockerfile Homework"
+LABEL version="1.0"
+LABEL maintainer="SoftUni Student"
+
+RUN dnf update -y && dnf upgrade -y && dnf install nginx -y
+RUN rm -rf /var/lib/apt/lists/*
+
+COPY index.html /usr/share/nginx/html/.
+
+ENTRYPOINT ["/usr/sbin/nginx", "-g", "daemon off;"]
+
+EXPOSE 80
+
