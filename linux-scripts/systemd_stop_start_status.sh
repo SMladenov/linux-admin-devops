@@ -38,8 +38,13 @@ if [ "$1" = "stop" ]; then
 	for service in $servicesStop; do
 		systemctl stop $service
 		sleep 1
+		isStopped=$(systemctl status $service | grep -ie '.*active.*running')
+		if [ -z "$isStopped" ]; then
+			echo -e "$service Successfully Stopped"
+		else
+			echo -e "$service Not Stopped! Please check"
+		fi
 	done
-	echo "Services stopped"
 fi
 
 if [ "$1" = "start" ]; then
