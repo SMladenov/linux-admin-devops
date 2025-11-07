@@ -55,6 +55,8 @@ for i in {1..180}; do
 
 	#Let's make tresholds and write to warning.log if exceeded
 	#We need to use calculator for the floating cpu_usage number
+	#cpu_int=${cpu_usage%.*}
+	#[ "$cpu_int" -ge 80 ]
 	if [ "$totalfree" -le 3000 ] || [ "$(echo "$cpu_usage >= 80" | bc)" -eq 1 ] || [ "$total_con" -ge 500 ]; then
 		echo -e "\n\n$date_now\ncurrent_connections: $current_con\ndisk_usage: $disk_usage %\ntotal_memory: $total_mem mb\ntotal_free_memory: $totalfree mb\ncpu_usage: $cpu_usage %\n\n" >> /statistics/warning.log
 	fi
