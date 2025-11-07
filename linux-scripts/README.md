@@ -30,4 +30,8 @@ and then start the sorting, and checking not to overwrite any files if they exis
 - Accepts 1 parameter, a destination folder, where the files will be created and checking permissions
 and creating 5 files for 5 days each month for the 5 previous years
 
- 
+# performance_check.sh
+- The purpose is to gather information about a server every 10 seconds in 30 minutes range and append to log files with timestamp
+- network connections, avg network connections, disk usage, memory usage, cpu usage
+
+
