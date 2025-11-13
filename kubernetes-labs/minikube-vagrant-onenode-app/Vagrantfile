@@ -1,0 +1,26 @@
+Vagrant.configure("2") do |config|
+
+    config.vm.define "kub1" do |kub1|
+        #kub1.vm.box="shekeriev/almalinux-9.6"
+		kub1.vm.box="AL9BOX1"
+        kub1.vm.hostname = "kub1.lab1"
+        kub1.vm.network "private_network", ip: "192.168.99.100"
+        kub1.vm.network "forwarded_port", guest: 8080, host: 8080, auto_correct: true
+		kub1.vm.network "forwarded_port", guest: 30000, host: 30000, auto_correct: true
+        kub1.vm.provision "shell", path: "docker-minikube-setup.sh"
+        kub1.vm.provider :virtualbox do |vb|
+			vb.gui = true
+            vb.customize ["modifyvm", :id, "--memory", "4096"]
+			vb.customize ["modifyvm", :id, "--cpus", "3"]
+      end
+		kub1.vm.synced_folder "manifests", "/home/vagrant/manifests/"
+		kub1.vm.provision "shell", inline: <<EOS
+sleep 4
+
+sudo cp -r /home/vagrant/manifests/ /home/strahil/
+sudo chmod -R 777 /home/strahil/manifests/
+sudo -u strahil /home/strahil/manifests/manual_execute.sh
+EOS
+    end
+  
+  end 

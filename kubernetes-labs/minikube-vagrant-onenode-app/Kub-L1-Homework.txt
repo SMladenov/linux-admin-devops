@@ -1,0 +1,482 @@
+[strahil@kub1 ~]$ mkdir -v homework && cd homework
+
+minikube start --driver=docker
+minikube status
+[strahil@kub1 ~]$ kubectl get pods,svc,rs,deployments
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   38s
+
+###Task 1###
+1. Execute a series of commands to
+
+a. Create a namespace named homework
+
+b. Create a homework-1 pod in that namespace that uses this (shekeriev/k8s-oracle) image and set two labels on it (all at once) – app=hw and tier=gold
+
+c. Remove the tier=gold label with a separate command
+
+d. Create a homework-2 pod in that namespace that uses this (shekeriev/k8s-oracle) image
+
+e. Add a label to the second pod app=hw with a separate command
+
+f. Set annotation on both pods with the following content purpose=homework
+
+g. Create a homerwork-svc service to expose both pods on port 32000 of every node in the cluster
+###
+
+[strahil@kub1 ~]$ kubectl create ns homework
+namespace/homework created
+
+[strahil@kub1 ~]$ kubectl run homework-1 --image shekeriev/k8s-oracle -n homework --labels="app=hw,tier=gold" --port=80
+pod/homework-1 created
+[strahil@kub1 ~]$ kubectl get pods -n homework
+NAME         READY   STATUS    RESTARTS   AGE
+homework-1   1/1     Running   0          11s
+
+[strahil@kub1 ~]$ kubectl describe pod homework-1 -n homework | grep -i labels -A 5
+Labels:           app=hw
+                  tier=gold
+Annotations:      <none>
+Status:           Running
+IP:               10.244.0.3
+IPs:
+
+[strahil@kub1 ~]$ kubectl label pod homework-1 -n homework tier-
+pod/homework-1 unlabeled
+
+[strahil@kub1 ~]$ kubectl run homework-2 --image shekeriev/k8s-oracle -n homework --port=80
+pod/homework-2 created
+
+[strahil@kub1 ~]$ kubectl get pods -o wide -n homework
+NAME         READY   STATUS    RESTARTS   AGE     IP           NODE       NOMINATED NODE   READINESS GATES
+homework-1   1/1     Running   0          5m23s   10.244.0.3   minikube   <none>           <none>
+homework-2   1/1     Running   0          18s     10.244.0.4   minikube   <none>           <none>
+
+[strahil@kub1 ~]$ kubectl label pod homework-2 -n homework app=hw --overwrite
+pod/homework-2 labeled
+[strahil@kub1 ~]$ kubectl describe pod homework-2 -n homework | grep -i labels -A 5
+Labels:           app=hw
+                  run=homework-2
+
+
+
+[strahil@kub1 ~]$ kubectl annotate pod homework-1 -n homework purpose=homework --overwrite
+pod/homework-1 annotated
+[strahil@kub1 ~]$ kubectl annotate pod homework-2 -n homework purpose=homework --overwrite
+pod/homework-2 annotated
+[strahil@kub1 homework]$ kubectl describe pods homework-1 homework-2 -n homework | grep -iE 'port|labels'
+Labels:           app=hw
+    Port:           80/TCP
+    Host Port:      0/TCP
+Labels:           app=hw
+    Port:           80/TCP
+    Host Port:      0/TCP
+
+
+
+[strahil@kub1 ~]$ kubectl exec -it homework-2 -n homework -- /bin/bash
+root@homework-2:/app# pwd
+/app
+root@homework-2:/app# ls
+__pycache__  app.cpython-36.pyc  app.py  requirements.txt
+root@homework-2:/app# curl http://localhost:80
+bash: curl: command not found
+
+
+vi homework-svc.yaml
+==
+apiVersion: v1
+kind: Service
+metadata:
+  name: homework-svc
+  namespace: homework
+  labels:
+    app: hw
+    ver: v1
+spec:
+  selector:
+    app: hw
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      nodePort: 32000
+      protocol: TCP
+==
+[strahil@kub1 homework]$ kubectl apply -f homework-svc.yaml
+service/homework-svc created
+[strahil@kub1 homework]$ kubectl get svc -n homework
+NAME           TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+homework-svc   NodePort   10.111.140.5   <none>        80:32000/TCP   12s
+
+[strahil@kub1 homework]$ minikube ip
+192.168.49.2
+[strahil@kub1 homework]$ curl http://192.168.49.2:32000
+curl: (7) Failed to connect to 192.168.49.2 port 32000: Connection refused
+[strahil@kub1 homework]$ minikube service homework-svc -n homework --url
+http://192.168.49.2:32000
+
+
+#I will try to make it with different image used in the practice
+#It worked with the image from practice
+
+[strahil@kub1 ~]$ kubectl run homework-1 --image shekeriev/k8s-appa:v1 -n homework --labels="app=hw,tier=gold" --port=80
+pod/homework-1 created
+[strahil@kub1 ~]$ kubectl run homework-2 --image shekeriev/k8s-appa:v1 -n homework --port=80
+pod/homework-2 created
+[strahil@kub1 ~]$ kubectl label pod homework-2 -n homework app=hw --overwrite
+pod/homework-2 labeled
+[strahil@kub1 ~]$ kubectl label pod homework-1 -n homework tier-
+pod/homework-1 unlabeled
+[strahil@kub1 ~]$ kubectl annotate pod homework-1 -n homework purpose=homework --overwrite
+pod/homework-1 annotated
+[strahil@kub1 ~]$ kubectl annotate pod homework-2 -n homework purpose=homework --overwrite
+pod/homework-2 annotated
+[strahil@kub1 ~]$ vi homework/homework-svc.yaml
+==
+apiVersion: v1
+kind: Service
+metadata:
+  name: homework-svc
+  namespace: homework
+  labels:
+    app: hw
+    ver: v1
+spec:
+  selector:
+    app: hw
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 32000
+    protocol: TCP
+==
+[strahil@kub1 ~]$ kubectl apply -f homework/homework-svc.yaml
+service/homework-svc created
+[strahil@kub1 ~]$ curl http://192.168.49.2:32000
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <title>World of Kubernetes</title>
+  </head>
+  <body>
+    <div align="center">
+      <img width="400px" height="400px" src="kubernetes-logo.png">
+      <h1>Welcome to the world of <span style="color: blue;">Kubernetes</span>!</h1>
+      <h2>There is plenty to explore here ...</h2>
+      <h2>You can start with the name: <span style="color: blue;">κυβερνήτης</span> &rArr; <span style="color: blue;">kubernetes</span> &rArr; <span style="color: blue;">k8s</span> :)</h2>
+      <br /><br /><br />
+      Running on <b>homework-2</b>
+    </div>
+  </body>
+</html>
+[strahil@kub1 ~]$
+
+###
+2. Create manifests for every object (the namespace, the two pods, and the service) from task 1 and apply them one by one
+
+3. Is there a way to submit those manifests at once? Find and demonstrate two ways of doing it
+###
+
+###2. Create manifests for every object 
+(the namespace, the two pods, and the service) 
+from task 1 and apply them one by one##
+
+mkdir -v manifests
+cd manifests/
+vi 1-homework-ns.yaml
+==
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: homework
+==
+
+kubectl apply -f 1-homework-ns.yaml
+
+vi 2-pod-homework-1.yaml
+==
+apiVersion: v1
+kind: Pod
+metadata:
+  name: homework-1
+  namespace: homework
+  labels:
+    app: hw
+    tier: gold
+  annotations:
+    purpose: homework
+spec:
+  containers:
+  - name: homework-container
+    image: shekeriev/k8s-appa:v1
+    ports:
+    - containerPort: 80
+==
+
+kubectl apply -f 2-pod-homework-1.yaml
+[strahil@kub1 manifests]$ kubectl describe pod homework-1 -n homework | grep -iE 'label|annotations' -A 3
+Labels:           app=hw
+                  tier=gold
+Annotations:      purpose: homework
+Status:           Running
+IP:               10.244.0.8
+IPs:
+
+
+vi 3-pod-homework-1.yaml
+==
+apiVersion: v1
+kind: Pod
+metadata:
+  name: homework-1
+  namespace: homework
+  labels:
+    app: hw
+  annotations:
+    purpose: homework
+spec:
+  containers:
+  - name: homework-container
+    image: shekeriev/k8s-appa:v1
+    ports:
+    - containerPort: 80
+==
+[strahil@kub1 manifests]$ kubectl apply -f 3-pod-homework-1.yaml
+pod/homework-1 configured
+
+
+vi 4-pod-homework-2.yaml
+==
+apiVersion: v1
+kind: Pod
+metadata:
+  name: homework-2
+  namespace: homework
+  annotations:
+    purpose: homework
+spec:
+  containers:
+  - name: homework-container
+    image: shekeriev/k8s-appa:v1
+    ports:
+    - containerPort: 80
+==
+kubectl apply -f 4-pod-homework-2.yaml
+[strahil@kub1 manifests]$ kubectl describe pods homework-1 homework-2 -n homework | grep -iE 'label|annotations' -A 3
+Labels:           app=hw
+Annotations:      purpose: homework
+Status:           Running
+IP:               10.244.0.8
+IPs:
+--
+Labels:           <none>
+Annotations:      purpose: homework
+Status:           Running
+IP:               10.244.0.9
+IPs:
+
+
+vi 5-pod-homework-2.yaml
+
+==
+apiVersion: v1
+kind: Pod
+metadata:
+  name: homework-2
+  namespace: homework
+  labels:
+    app: hw
+  annotations:
+    purpose: homework
+spec:
+  containers:
+  - name: homework-container
+    image: shekeriev/k8s-appa:v1
+    ports:
+    - containerPort: 80
+==
+kubectl apply -f 5-pod-homework-2.yaml
+
+
+vi 6-svc-homework-svc.yaml
+==
+apiVersion: v1
+kind: Service
+metadata:
+  name: homework-svc
+  namespace: homework
+  labels:
+    app: hw
+    ver: v1
+spec:
+  selector:
+    app: hw
+  type: NodePort
+  ports:
+  - name: http
+    port: 80
+    nodePort: 32000
+    protocol: TCP
+==
+kubectl apply -f 6-svc-homework-svc.yaml
+
+[strahil@kub1 manifests]$ minikube ip
+192.168.49.2
+[strahil@kub1 manifests]$ curl http://192.168.49.2:32000
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <title>World of Kubernetes</title>
+  </head>
+  <body>
+    <div align="center">
+      <img width="400px" height="400px" src="kubernetes-logo.png">
+      <h1>Welcome to the world of <span style="color: blue;">Kubernetes</span>!</h1>
+      <h2>There is plenty to explore here ...</h2>
+      <h2>You can start with the name: <span style="color: blue;">κυβερνήτης</span> &rArr; <span style="color: blue;">kubernetes</span> &rArr; <span style="color: blue;">k8s</span> :)</h2>
+      <br /><br /><br />
+      Running on <b>homework-2</b>
+    </div>
+  </body>
+</html>
+[strahil@kub1 manifests]$
+
+
+###3. Is there a way to submit those manifests at once? Find and demonstrate two ways of doing it###
+
+kubectl delete ns homework
+vi manual_execute.sh
+==
+#!/bin/bash
+
+for i in {1..6} ; do
+
+kubectl apply -f "/home/strahil/manifests/"$i-*
+if [ $? -eq 0 ]; then
+        sleep 5
+else
+        echo -e "Error executing manifest number $i"
+        exit 1
+fi
+
+done
+
+url=$(minikube service homework-svc -n homework --url)
+
+echo -e "Execution Completed\nPlease use curl $url to check it"
+
+
+==
+chmod +x manual_execute.sh
+[strahil@kub1 manifests]$ ./manual_execute.sh
+namespace/homework created
+pod/homework-1 created
+pod/homework-1 configured
+pod/homework-2 created
+pod/homework-2 configured
+service/homework-svc created
+Execution Completed
+Please use curl http://192.168.49.2:32000 to check it
+[strahil@kub1 manifests]$ curl http://192.168.49.2:32000
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <title>World of Kubernetes</title>
+  </head>
+  <body>
+    <div align="center">
+      <img width="400px" height="400px" src="kubernetes-logo.png">
+      <h1>Welcome to the world of <span style="color: blue;">Kubernetes</span>!</h1>
+      <h2>There is plenty to explore here ...</h2>
+      <h2>You can start with the name: <span style="color: blue;">κυβερνήτης</span> &rArr; <span style="color: blue;">kubernetes</span> &rArr; <span style="color: blue;">k8s</span> :)</h2>
+      <br /><br /><br />
+      Running on <b>homework-1</b>
+    </div>
+  </body>
+</html>
+
+
+#2nd way
+[strahil@kub1 ~]$ kubectl apply -f manifests/
+namespace/homework created
+pod/homework-1 created
+pod/homework-1 configured
+pod/homework-2 created
+pod/homework-2 configured
+service/homework-svc created
+
+[strahil@kub1 ~]$ curl http://192.168.49.2:32000
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <title>World of Kubernetes</title>
+  </head>
+  <body>
+    <div align="center">
+      <img width="400px" height="400px" src="kubernetes-logo.png">
+      <h1>Welcome to the world of <span style="color: blue;">Kubernetes</span>!</h1>
+      <h2>There is plenty to explore here ...</h2>
+      <h2>You can start with the name: <span style="color: blue;">κυβερνήτης</span> &rArr; <span style="color: blue;">kubernetes</span> &rArr; <span style="color: blue;">k8s</span> :)</h2>
+      <br /><br /><br />
+      Running on <b>homework-2</b>
+    </div>
+  </body>
+</html>
+
+
+#another way
+
+cd /home/strahil/manifests/
+vi all_in_one_manifest.yaml
+==
+#!/bin/bash
+
+filePath="/home/strahil/manifests/homework-all.yaml"
+
+if [ -f $filePath ]; then
+        rm $filePath
+fi
+
+for i in {1..6}; do
+
+cat "/home/strahil/manifests/"$i-* >> $filePath
+
+echo -e '\n---\n' >> $filePath
+
+done
+
+echo -e "Please execute:\nkubectl apply -f $filePath"
+echo -e "\nGet the url and check if working:\nminikube service homework-svc -n homework --url"
+
+
+==
+
+[strahil@kub1 ~]$ kubectl apply -f manifests/homework-all.yaml
+namespace/homework created
+pod/homework-1 created
+pod/homework-1 configured
+pod/homework-2 created
+pod/homework-2 configured
+service/homework-svc created
+
+[strahil@kub1 ~]$ curl http://192.168.49.2:32000
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <title>World of Kubernetes</title>
+  </head>
+  <body>
+    <div align="center">
+      <img width="400px" height="400px" src="kubernetes-logo.png">
+      <h1>Welcome to the world of <span style="color: blue;">Kubernetes</span>!</h1>
+      <h2>There is plenty to explore here ...</h2>
+      <h2>You can start with the name: <span style="color: blue;">κυβερνήτης</span> &rArr; <span style="color: blue;">kubernetes</span> &rArr; <span style="color: blue;">k8s</span> :)</h2>
+      <br /><br /><br />
+      Running on <b>homework-1</b>
+    </div>
+  </body>
+</html>
+
+
+
