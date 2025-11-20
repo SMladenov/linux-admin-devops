@@ -34,4 +34,7 @@ and creating 5 files for 5 days each month for the 5 previous years
 - The purpose is to gather information about a server every 10 seconds in 30 minutes range and append to log files with timestamp
 - network connections, avg network connections, disk usage, memory usage, cpu usage
 
+# dmod_restart.sh
+- restart of some processes
+
 
