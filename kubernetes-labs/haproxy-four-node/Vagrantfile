@@ -1,0 +1,69 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+    
+  config.ssh.insert_key = false
+
+  config.vm.define "loadbalancer" do |loadbalancer|
+    loadbalancer.vm.box = "shekeriev/debian-12.11"
+    loadbalancer.vm.hostname = "loadbalancer"
+    loadbalancer.vm.network "private_network", ip: "192.168.100.101"
+    #loadbalancer.vm.network "forwarded_port", guest: 80, host: 8085
+	loadbalancer.vm.provision "shell", path: "add_hosts.sh"
+	loadbalancer.vm.provider :virtualbox do |vb|
+		vb.gui = true
+		vb.customize ["modifyvm", :id, "--memory", "1024"]
+		vb.customize ["modifyvm", :id, "--cpus", "1"]
+	end
+  end
+  
+  config.vm.define "node1" do |node1|
+    node1.vm.box = "KubImage"
+    node1.vm.hostname = "node1"
+    node1.vm.network "private_network", ip: "192.168.100.102"
+	node1.vm.provision "shell", path: "add_hosts.sh"
+	node1.vm.provider :virtualbox do |vb|
+		vb.gui = true
+        vb.customize ["modifyvm", :id, "--memory", "2048"]
+		vb.customize ["modifyvm", :id, "--cpus", "2"]
+	end
+  end
+  
+  config.vm.define "node2" do |node2|
+    node2.vm.box = "KubImage"
+    node2.vm.hostname = "node2"
+    node2.vm.network "private_network", ip: "192.168.100.103"
+	node2.vm.provision "shell", path: "add_hosts.sh"
+	node2.vm.provider :virtualbox do |vb|
+		vb.gui = true
+		vb.customize ["modifyvm", :id, "--memory", "2048"]
+		vb.customize ["modifyvm", :id, "--cpus", "2"]
+	end
+  end
+
+  config.vm.define "node3" do |node3|
+    node3.vm.box = "KubImage"
+    node3.vm.hostname = "node3"
+    node3.vm.network "private_network", ip: "192.168.100.104"
+	node3.vm.provision "shell", path: "add_hosts.sh"
+	node3.vm.provider :virtualbox do |vb|
+		vb.gui = true
+		vb.customize ["modifyvm", :id, "--memory", "2048"]
+		vb.customize ["modifyvm", :id, "--cpus", "2"]
+	end
+  end
+  
+  config.vm.define "node4" do |node4|
+    node4.vm.box = "KubImage"
+    node4.vm.hostname = "node4"
+    node4.vm.network "private_network", ip: "192.168.100.105"
+	node4.vm.provision "shell", path: "add_hosts.sh"
+	node4.vm.provider :virtualbox do |vb|
+		vb.gui = true
+		vb.customize ["modifyvm", :id, "--memory", "2048"]
+		vb.customize ["modifyvm", :id, "--cpus", "2"]
+	end
+  end
+
+end

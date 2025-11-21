@@ -1,0 +1,259 @@
+#Stop all machines
+#Download kubectl and set PATH variable on the host (Windows in my case)
+#set PATH=%PATH%;D:\Commads\Kubernetes\Lecture1-Core-Concepts
+
+#4 machines from kub golden image, 1 from normal image
+#3 Control Plane Nodes (node1, node2, node3), 1 Node (node4), 1 Load Balancer -> Not Enough Resources for more
+
+#Exporting vagrant template for 4 machines
+vagrant package --base Practice-with-vagrant-file_kubTemplate_1763043680709_51320
+vagrant box add KubImage package.box
+vagrant box list
+
+#Using classic one for HA Proxy
+
+vagrant status
+vagrant up
+
+#Add to /etc/hosts on each VM
+cat <<EOF | sudo tee -a /etc/hosts
+192.168.100.101 loadbalancer
+192.168.100.102 node1
+192.168.100.103 node2
+192.168.100.104 node3
+192.168.100.105 node4
+EOF
+
+#ssh to loadbalancer
+ping loadbalancer
+for i in {1..4} ; do ping -c 2 node$i ; done
+
+apt-get update
+apt-get install haproxy -y
+vi /etc/haproxy/haproxy.cfg
+==
+frontend kubernetes
+    bind 192.168.100.101:6443
+    option tcplog
+    mode tcp
+    default_backend kubernetes-cp
+
+backend kubernetes-cp
+    #option httpchk GET /healthz
+    #http-check expect status 200
+    mode tcp
+    option tcp-check
+    #option ssl-hello-chk
+    balance roundrobin
+    default-server inter 5s fall 3 rise 2
+    server node1 192.168.100.102:6443 check
+    server node2 192.168.100.103:6443 check
+    server node3 192.168.100.104:6443 check
+
+frontend stats
+    bind 192.168.100.101:8080
+    mode http
+    stats enable
+    stats uri /
+    stats realm HAProxy\ Statistics
+    stats auth admin:haproxy
+==
+
+haproxy -c -f /etc/haproxy/haproxy.cfg
+systemctl restart haproxy
+#It is normal to see health check errors as we didn't initialyze our kubernetes cluster yet
+
+#Node1 - First Control Node
+
+#If reset needed
+kubeadm reset -f
+rm -rf /etc/kubernetes/
+rm -rf /var/lib/etcd/
+rm -f $HOME/.kube/config
+ss -tulpn | grep -E "6443|1025|2379|2380"
+systemctl restart containerd
+#
+
+#Forcing api server to bind the correct IP
+#This time it worked with disabling https health check probe in HA proxy
+
+kubeadm init --apiserver-advertise-address=192.168.100.102 \
+  --control-plane-endpoint "192.168.100.101:6443" \
+  --kubernetes-version v1.33.3 \
+  --upload-certs \
+  --pod-network-cidr 10.244.0.0/16
+ 
+#This time with root
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+##
+You can now join any number of control-plane nodes running the following command on each as root:
+
+  kubeadm join 192.168.100.101:6443 --token 6iutfb.xh8qknuce1weh68w \
+        --discovery-token-ca-cert-hash sha256:fa16ad8d9db5adc0a8fd350d06be7c9ffc30a4545cc2851cd9189dd6882f53cb \
+        --control-plane --certificate-key 10985defab2f96e0d0343c835c74e9dd56001b85207c494adeb0ce14e4d5562d
+
+Please note that the certificate-key gives access to cluster sensitive data, keep it secret!
+As a safeguard, uploaded-certs will be deleted in two hours; If necessary, you can use
+"kubeadm init phase upload-certs --upload-certs" to reload certs afterward.
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 192.168.100.101:6443 --token 6iutfb.xh8qknuce1weh68w \
+        --discovery-token-ca-cert-hash sha256:fa16ad8d9db5adc0a8fd350d06be7c9ffc30a4545cc2851cd9189dd6882f53cb
+
+##
+
+kubectl get nodes
+kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+kubectl get pods --all-namespaces -w
+kubectl get nodes
+
+
+
+#Node2 - Second Control Plane Node
+
+kubeadm join 192.168.100.101:6443 --token 6iutfb.xh8qknuce1weh68w \
+--discovery-token-ca-cert-hash sha256:fa16ad8d9db5adc0a8fd350d06be7c9ffc30a4545cc2851cd9189dd6882f53cb \
+--control-plane \
+--certificate-key 10985defab2f96e0d0343c835c74e9dd56001b85207c494adeb0ce14e4d5562d \
+--apiserver-advertise-address=192.168.100.103
+
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+kubectl get nodes
+
+#Only if needed, to check this configuration because was messed with NAT, it should look like this:
+vi /etc/kubernetes/manifests/etcd.yaml
+==
+    kubeadm.kubernetes.io/etcd.advertise-client-urls: https://192.168.100.103:2379
+  creationTimestamp: null
+  labels:
+    component: etcd
+    tier: control-plane
+  name: etcd
+  namespace: kube-system
+spec:
+  containers:
+  - command:
+    - etcd
+    - --advertise-client-urls=https://192.168.100.103:2379
+    - --cert-file=/etc/kubernetes/pki/etcd/server.crt
+    - --client-cert-auth=true
+    - --data-dir=/var/lib/etcd
+    - --experimental-initial-corrupt-check=true
+    - --experimental-watch-progress-notify-interval=5s
+    - --initial-advertise-peer-urls=https://192.168.100.103:2380
+    - --initial-cluster=node2=https://192.168.100.103:2380,node1=https://192.168.100.102:2380
+    - --initial-cluster-state=existing
+    - --key-file=/etc/kubernetes/pki/etcd/server.key
+    - --listen-client-urls=https://127.0.0.1:2379,https://192.168.100.103:2379
+    - --listen-metrics-urls=http://127.0.0.1:2381
+    - --listen-peer-urls=https://192.168.100.103:2380
+    - --name=node2
+    - --peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+    - --peer-client-cert-auth=true
+    - --peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+    - --peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+    - --snapshot-count=10000
+    - --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+==
+#Take some time to reload the configuration
+
+
+
+
+#Node3 - Third Control Plane Node
+
+kubeadm join 192.168.100.101:6443 --token 6iutfb.xh8qknuce1weh68w \
+--discovery-token-ca-cert-hash sha256:fa16ad8d9db5adc0a8fd350d06be7c9ffc30a4545cc2851cd9189dd6882f53cb \
+--control-plane \
+--certificate-key 10985defab2f96e0d0343c835c74e9dd56001b85207c494adeb0ce14e4d5562d \
+--apiserver-advertise-address=192.168.100.104
+
+#If a reset is needed
+kubeadm reset -f
+rm -rf /etc/kubernetes/manifests/* /etc/kubernetes/pki/*
+rm -rf /var/lib/etcd/*
+rm -rf /var/lib/kubelet/*              
+rm -f /etc/cni/net.d/*                 
+systemctl restart containerd
+systemctl restart kubelet
+#
+
+#If a force tell to use this use if needed
+echo 'KUBELET_EXTRA_ARGS=--node-ip=192.168.100.104' | sudo tee /etc/default/kubelet
+#
+
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+kubectl get nodes
+
+
+#Node4 - The Forth and Worker Node
+
+kubeadm join 192.168.100.101:6443 --token 6iutfb.xh8qknuce1weh68w \
+--discovery-token-ca-cert-hash sha256:fa16ad8d9db5adc0a8fd350d06be7c9ffc30a4545cc2851cd9189dd6882f53cb
+
+#On a Control Plane Node (kubectl configured)
+kubectl get pods -A
+kubectl get nodes -o wide
+
+mkdir -v /home/strahil/files && chmod 777 /home/strahil/files
+scp -P 2200 consumer* strahil@localhost:/home/strahil/files/.
+
+kubectl apply -f consumer-deployment.yml
+kubectl apply -f consumer-svc.yml
+
+kubectl get pods -A
+kubectl get nodes -o wide
+kubectl get svc -o wide
+curl http://192.168.100.105:30001
+
+
+#Load Balancer and add the following, backend would be the worker nodes
+vi /etc/haproxy/haproxy.cfg
+==
+frontend nodeport
+    bind *:30000-32767
+    mode tcp
+    default_backend kubernetes-np
+
+backend kubernetes-np
+    mode tcp
+    balance roundrobin
+    #server node1 192.168.100.102
+    #server node2 192.168.100.103
+    #server node3 192.168.100.104
+    server node4 192.168.100.105
+==
+
+haproxy -c -f /etc/haproxy/haproxy.cfg
+systemctl restart haproxy
+root@loadbalancer:/home/vagrant# curl http://192.168.100.101:30001
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <title>World of Kubernetes</title>
+  </head>
+  <body>
+    <div align="center">
+      <img width="400px" height="400px" src="kubernetes-logo.png">
+      <h1>Welcome to the world of <span style="color: blue;">Kubernetes</span>!</h1>
+      <h2>There is plenty to explore here ...</h2>
+      <h2>You can start with the name: <span style="color: blue;">κυβερνήτης</span> &rArr; <span style="color: blue;">kubernetes</span> &rArr; <span style="color: blue;">k8s</span> :)</h2>
+      <br /><br /><br />
+      Running on <b>consumer-deploy-6b54f6d7c7-kqxx4</b>
+    </div>
+  </body>
+</html>
+root@loadbalancer:/home/vagrant#
+
