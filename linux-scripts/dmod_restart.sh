@@ -5,12 +5,22 @@ if [ "$EUID" -ne 0 ]; then
 	exit 1
 fi
 
-echo "Killing processes"
-ps aux | grep -i dmod | grep -v $0 | awk '{print $2}' | xargs kill -9
+
+pids=$(ps aux | grep -i dmod | grep -viE "$0|grep" | awk '{print $2}')
+
+
+if [ ! -z "$pids" ]; then
+	echo "killing processes"
+	echo -e "$pids" | xargs kill -9
+	sleep 3
+else
+	echo "no processes found"
+	sleep 2
+fi
+
+echo "Starting processes"
 sleep 2
 
-echo "Done, Starting them"
-sleep 2
 
 for file in /usr/local/dmod*/bin/dmodd; do
 	$file
