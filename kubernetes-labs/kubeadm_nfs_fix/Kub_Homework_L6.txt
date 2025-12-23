@@ -1,0 +1,441 @@
+
+
+
+1.
+
+
+vi scenario-2.yaml
+==
+apiVersion: v1
+kind: Pod
+metadata:
+  name: readiness-http
+  labels:
+    app: readiness-http
+spec:
+  initContainers:
+  - name: init-data
+    image: alpine
+    command: ["/bin/sh", "-c"]
+    args:
+      - echo '(Almost) Always Ready to Serve ;)' > /data/index.html
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  containers:
+  - name: cont-main
+    image: nginx
+    volumeMounts:
+    - name: data
+      mountPath: /usr/share/nginx/html
+    readinessProbe:
+      httpGet:
+        path: /healthy.html
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 5
+  - name: cont-sidecar-postpone
+    image: alpine
+    command: ["/bin/sh", "-c"]
+    args:
+      - while true; do
+          sleep 20;
+          echo 'WORKING' > /check/healthy.html;
+          sleep 60;
+        done
+    volumeMounts:
+    - name: data
+      mountPath: /check
+  - name: cont-sidecar-break
+    image: alpine
+    command: ["/bin/sh", "-c"]
+    args:
+      - while true; do
+          sleep 60;
+          rm /check/healthy.html;
+          sleep 20;
+        done
+    volumeMounts:
+    - name: data
+      mountPath: /check
+  volumes:
+  - name: data
+    emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: readiness-http
+  labels:
+    app: readiness-http
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30001
+    protocol: TCP
+  selector:
+    app: readiness-http
+==
+
+kubectl apply -f scenario-2.yaml --dry-run=client
+kubectl apply -f scenario-2.yaml
+
+root@node1:/home/strahil/part3# kubectl get pods,svc -o wide
+NAME                 READY   STATUS    RESTARTS   AGE   IP           NODE    NOMINATED NODE   READINESS GATES
+pod/readiness-http   2/3     Running   0          14s   172.16.2.3   node3   <none>           <none>
+
+NAME                     TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE   SELECTOR
+service/kubernetes       ClusterIP   10.96.0.1        <none>        443/TCP        25h   <none>
+service/readiness-http   NodePort    10.105.187.150   <none>        80:30001/TCP   14s   app=readiness-http
+root@node1:/home/strahil/part3# kubectl get pods,svc -o wide
+NAME                 READY   STATUS    RESTARTS   AGE   IP           NODE    NOMINATED NODE   READINESS GATES
+pod/readiness-http   2/3     Running   0          21s   172.16.2.3   node3   <none>           <none>
+
+NAME                     TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE   SELECTOR
+service/kubernetes       ClusterIP   10.96.0.1        <none>        443/TCP        25h   <none>
+service/readiness-http   NodePort    10.105.187.150   <none>        80:30001/TCP   21s   app=readiness-http
+root@node1:/home/strahil/part3#
+root@node1:/home/strahil/part3#
+root@node1:/home/strahil/part3#
+root@node1:/home/strahil/part3#
+root@node1:/home/strahil/part3#
+root@node1:/home/strahil/part3#
+root@node1:/home/strahil/part3#
+root@node1:/home/strahil/part3# curl http://node3:30001
+(Almost) Always Ready to Serve ;)
+root@node1:/home/strahil/part3#
+
+
+
+
+
+
+
+
+
+
+
+
+
+##Task 2
+
+vi scenario-3.yaml
+==
+apiVersion: v1
+kind: Pod
+metadata:
+  name: startup-mixed
+  labels:
+    app: startup-mixed
+spec:
+  initContainers:
+  - name: init-data
+    image: alpine
+    command: ["/bin/sh", "-c"]
+    args:
+      - echo '(Almost) Always Ready to Serve ;)' > /data/index.html
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  containers:
+  - name: cont-main
+    image: nginx
+    volumeMounts:
+    - name: data
+      mountPath: /usr/share/nginx/html
+    - name: data
+      mountPath: /check
+    livenessProbe:
+      httpGet:
+        path: /healthy.html
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 5
+    startupProbe:
+      exec:
+        command:
+        - cat
+        - /check/healthy.html
+      failureThreshold: 3
+      periodSeconds: 5
+  - name: cont-sidecar-postpone
+    image: alpine
+    command: ["/bin/sh", "-c"]
+    args:
+      - while true; do
+          sleep 20;
+          echo 'WORKING' > /check/healthy.html;
+          sleep 60;
+        done
+    volumeMounts:
+    - name: data
+      mountPath: /check
+  - name: cont-sidecar-break
+    image: alpine
+    command: ["/bin/sh", "-c"]
+    args:
+      - while true; do
+          sleep 60;
+          rm /check/healthy.html;
+          sleep 20;
+        done
+    volumeMounts:
+    - name: data
+      mountPath: /check
+  volumes:
+  - name: data
+    emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: startup-mixed
+  labels:
+    app: startup-mixed
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30002
+    protocol: TCP
+  selector:
+    app: startup-mixed
+==
+
+kubectl apply -f scenario-3.yaml --dry-run=client
+kubectl apply -f scenario-3.yaml
+kubectl get pods,svc -o wide
+root@node1:/home/strahil/part3# curl http://node2:30002
+curl: (7) Failed to connect to node2 port 30002 after 1 ms: Couldn't connect to server
+root@node1:/home/strahil/part3# curl http://node2:30002
+(Almost) Always Ready to Serve ;)
+root@node1:/home/strahil/part3# curl http://node2:30002
+(Almost) Always Ready to Serve ;)
+
+
+###Task 3
+
+
+#nfs
+root@nfs:/home/strahil# exportfs -s
+/data/nfs/k8spva  *(sync,wdelay,hide,no_subtree_check,sec=sys,ro,secure,root_squash,no_all_squash)
+/data/nfs/k8spvb  *(sync,wdelay,hide,no_subtree_check,sec=sys,ro,secure,root_squash,no_all_squash)
+/data/nfs/k8spvc  *(sync,wdelay,hide,no_subtree_check,sec=sys,ro,secure,root_squash,no_all_squash)
+
+
+#node1
+vi pvss.yaml
+==
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pvssa
+  labels:
+    purpose: ssdemo
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - nfsvers=4.1
+  nfs:
+    path: /data/nfs/k8spva
+    server: nfs
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pvssb
+  labels:
+    purpose: ssdemo
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - nfsvers=4.1
+  nfs:
+    path: /data/nfs/k8spvb
+    server: nfs
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pvssc
+  labels:
+    purpose: ssdemo
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  mountOptions:
+    - nfsvers=4.1
+  nfs:
+    path: /data/nfs/k8spvc
+    server: nfs
+==
+
+
+kubectl apply -f pvss.yaml --dry-run=client
+kubectl apply -f pvss.yaml
+
+root@node1:/home/strahil/scenario-4# kubectl get pv
+NAME    CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvssa   1Gi        RWO            Recycle          Available                          <unset>                          5s
+pvssb   1Gi        RWO            Recycle          Available                          <unset>                          5s
+pvssc   1Gi        RWO            Recycle          Available                          <unset>                          5s
+root@node1:/home/strahil/scenario-4#
+
+
+vi svcss.yaml
+==
+apiVersion: v1
+kind: Service
+metadata:
+  name: facts
+spec:
+  clusterIP: None
+  selector:
+    app: facts
+  ports:
+  - name: http
+    port: 5000
+    protocol: TCP
+==
+
+kubectl apply -f svcss.yaml --dry-run=client
+kubectl apply -f svcss.yaml
+
+root@node1:/home/strahil/scenario-4# kubectl get svc -o wide
+NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE   SELECTOR
+facts        ClusterIP   None         <none>        5000/TCP   21s   app=facts
+kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP    10m   <none>
+
+
+vi svcssnp.yaml
+==
+apiVersion: v1
+kind: Service
+metadata:
+  name: factsnp
+spec:
+  selector:
+    app: facts
+  type: NodePort
+  ports:
+  - port: 5000
+    nodePort: 30002
+    protocol: TCP
+==
+
+kubectl apply -f svcssnp.yaml --dry-run=client
+kubectl apply -f svcssnp.yaml
+
+root@node1:/home/strahil/scenario-4# kubectl get svc -o wide
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE   SELECTOR
+facts        ClusterIP   None            <none>        5000/TCP         91s   app=facts
+factsnp      NodePort    10.110.168.57   <none>        5000:30002/TCP   6s    app=facts
+kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP          11m   <none>
+
+
+vi ss.yaml
+==
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: facts
+spec:
+  selector:
+    matchLabels:
+      app: facts
+  serviceName: facts
+  replicas: 2
+  # POD template
+  template:
+    metadata:
+      labels:
+        app: facts
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: main
+        image: shekeriev/k8s-facts
+        ports:
+        - name: app
+          containerPort: 5000
+        volumeMounts:
+        - name: facts-data
+          mountPath: /data
+  # VolumeClaim template
+  volumeClaimTemplates:
+  - metadata:
+      name: facts-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+==
+
+kubectl apply -f ss.yaml --dry-run=client
+kubectl apply -f ss.yaml
+
+root@node1:/home/strahil/scenario-4# kubectl get pods,svc,statefulset,pv,pvc -o wide
+NAME          READY   STATUS    RESTARTS   AGE   IP           NODE    NOMINATED NODE   READINESS GATES
+pod/facts-0   1/1     Running   0          21s   172.16.2.2   node3   <none>           <none>
+pod/facts-1   1/1     Running   0          14s   172.16.1.2   node2   <none>           <none>
+
+NAME                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE     SELECTOR
+service/facts        ClusterIP   None            <none>        5000/TCP         3m25s   app=facts
+service/factsnp      NodePort    10.110.168.57   <none>        5000:30002/TCP   2m      app=facts
+service/kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP          13m     <none>
+
+NAME                     READY   AGE   CONTAINERS   IMAGES
+statefulset.apps/facts   2/2     21s   main         shekeriev/k8s-facts
+
+NAME                     CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                        STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE     VOLUMEMODE
+persistentvolume/pvssa   1Gi        RWO            Recycle          Bound       default/facts-data-facts-0                  <unset>                          4m33s   Filesystem
+persistentvolume/pvssb   1Gi        RWO            Recycle          Bound       default/facts-data-facts-1                  <unset>                          4m33s   Filesystem
+persistentvolume/pvssc   1Gi        RWO            Recycle          Available                                               <unset>                          4m33s   Filesystem
+
+NAME                                       STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE   VOLUMEMODE
+persistentvolumeclaim/facts-data-facts-0   Bound    pvssa    1Gi        RWO                           <unset>                 21s   Filesystem
+persistentvolumeclaim/facts-data-facts-1   Bound    pvssb    1Gi        RWO                           <unset>                 14s   Filesystem
+
+
+root@node1:/home/strahil/scenario-4# curl http://node3:30002/facts
+facts-1 contains 0 fact(s)root@node1:/home/strahil/scenario-4# curl http://node2:30002/facts
+facts-0 contains 0 fact(s)root@node1:/home/strahil/scenario-4#
+
+root@node1:/home/strahil/scenario-4# curl http://node2:30002
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<title>500 Internal Server Error</title>
+<h1>Internal Server Error</h1>
+<p>The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.</p>
+root@node1:/home/strahil/scenario-4# curl http://node3:30002
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<title>500 Internal Server Error</title>
+<h1>Internal Server Error</h1>
+<p>The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.</p>
+
+
+kubectl delete statefulset.apps/facts
+kubectl delete service/facts service/factsnp
+kubectl delete persistentvolumeclaim facts-data-facts-0 facts-data-facts-1 facts-data-facts-2
+kubectl delete persistentvolume pvssa pvssb pvssc
+
+
+
+
+
+

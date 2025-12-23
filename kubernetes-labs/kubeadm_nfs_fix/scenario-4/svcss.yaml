@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: facts
+spec:
+  clusterIP: None
+  selector:
+    app: facts
+  ports:
+  - name: http
+    port: 5000
+    protocol: TCP
