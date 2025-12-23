@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer-deploy
+  namespace: projectx
+spec:
+  replicas: 2
+  selector:
+    matchLabels: 
+      app: fun-facts
+      role: producer
+  minReadySeconds: 15
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: fun-facts
+        role: producer
+    spec:
+      containers:
+      - name: prod-container
+        image: shekeriev/k8s-appa:v3
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 200m
+            memory: 128Mi
+          limits:
+            cpu: 400m
+            memory: 256Mi
+
+

@@ -1,0 +1,337 @@
+1. Create and register two Kubernetes uses – Ivan (ivan) and Mariana (mariana) 
+who are part of the Gurus (gurus) group
+
+sudo useradd -m -s /bin/bash ivan
+sudo useradd -m -s /bin/bash mariana
+echo "ivan:123" | sudo chpasswd
+echo "mariana:123" | sudo chpasswd
+
+#ivan
+sudo su
+cd /home/ivan/ && mkdir .certs && cd .certs
+openssl genrsa -out ivan.key 2048
+openssl req -new -key ivan.key -out ivan.csr -subj "/CN=ivan/O=gurus"
+
+sudo openssl x509 -req -in ivan.csr \
+-CA /etc/kubernetes/pki/ca.crt \
+-CAkey /etc/kubernetes/pki/ca.key \
+-CAcreateserial \
+-out ivan.crt -days 365
+
+kubectl config set-credentials ivan --client-certificate=/home/ivan/.certs/ivan.crt \
+--client-key=/home/ivan/.certs/ivan.key
+
+kubectl config set-context ivan-context --cluster=kubernetes --user=ivan
+kubectl config get-users
+kubectl config get-contexts
+kubectl config view
+
+sudo mkdir /home/ivan/.kube
+sudo cp ~/.kube/config /home/ivan/.kube/config
+sudo vi /home/ivan/.kube/config
+==
+contexts:
+- context:
+    cluster: kubernetes
+    user: ivan
+  name: ivan-context
+current-context: ivan-context
+kind: Config
+preferences: {}
+users:
+- name: ivan
+  user:
+    client-certificate: /home/ivan/.certs/ivan.crt
+    client-key: /home/ivan/.certs/ivan.key
+==
+
+sudo chown -R ivan: /home/ivan/
+
+#mariana
+cd /home/mariana/ && mkdir .certs && cd .certs
+openssl genrsa -out mariana.key 2048
+openssl req -new -key mariana.key -out mariana.csr -subj "/CN=mariana/O=gurus"
+
+sudo openssl x509 -req -in mariana.csr \
+-CA /etc/kubernetes/pki/ca.crt \
+-CAkey /etc/kubernetes/pki/ca.key \
+-CAcreateserial \
+-out mariana.crt -days 365
+
+kubectl config set-credentials mariana --client-certificate=/home/mariana/.certs/mariana.crt \
+--client-key=/home/mariana/.certs/mariana.key
+
+kubectl config set-context mariana-context --cluster=kubernetes --user=mariana
+kubectl config get-users
+kubectl config get-contexts
+kubectl config view
+
+sudo mkdir /home/mariana/.kube
+sudo cp ~/.kube/config /home/mariana/.kube/config
+sudo vi /home/mariana/.kube/config
+==
+contexts:
+- context:
+    cluster: kubernetes
+    user: mariana
+  name: mariana-context
+current-context: mariana-context
+kind: Config
+preferences: {}
+users:
+- name: mariana
+  user:
+    client-certificate: /home/mariana/.certs/mariana.crt
+    client-key: /home/mariana/.certs/mariana.key
+==
+
+sudo chown -R mariana: /home/mariana/
+
+root@node1:/home/mariana/.certs# openssl x509 -in /home/ivan/.certs/ivan.crt -noout -dates -subject
+notBefore=Nov 25 08:05:34 2025 GMT
+notAfter=Nov 25 08:05:34 2026 GMT
+subject=CN = ivan, O = gurus
+root@node1:/home/mariana/.certs# openssl x509 -in mariana.crt -noout -subject -dates
+subject=CN = mariana, O = gurus
+notBefore=Nov 25 09:54:37 2025 GMT
+notAfter=Nov 25 09:54:37 2026 GMT
+
+
+2. Create a namespace named projectx
+
+kubectl create namespace projectx
+kubectl get namespaces
+
+
+3. Create a LimitRange for the namespace to set defaults, 
+minimum and maximum both for CPU and memory (use values that you consider suitable)
+
+vi /home/strahil/homework/limits.yaml
+==
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: limits
+  namespace: projectx
+spec:
+  limits:
+  - type: Pod
+    max:
+      cpu: 1
+      memory: 800Mi
+    min:
+      cpu: 200m
+      memory: 32Mi
+  - type: Container
+    defaultRequest:
+      cpu: 200m
+      memory: 32Mi
+    default:
+      cpu: 400m
+      memory: 64Mi
+    max:
+      cpu: 1
+      memory: 800Mi
+    min:
+      cpu: 200m
+      memory: 32Mi
+==
+
+kubectl apply -f limits.yaml
+root@node1:/home/strahil/homework# kubectl describe limitrange limits -n projectx
+Name:       limits
+Namespace:  projectx
+Type        Resource  Min   Max    Default Request  Default Limit  Max Limit/Request Ratio
+----        --------  ---   ---    ---------------  -------------  -----------------------
+Pod         cpu       200m  1      -                -              -
+Pod         memory    32Mi  800Mi  -                -              -
+Container   cpu       200m  1      200m             400m           -
+Container   memory    32Mi  800Mi  32Mi             64Mi           -
+
+
+4. Create a ResourceQuota for the namespace to set requests and limits 
+both for CPU and memory (use values that you consider suitable). 
+In addition, add limits for pods, services, deployments, and replicasets 
+(again, use values that you find appropriate)
+
+vi /home/strahil/homework/quota.yaml
+==
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: projectx
+spec:
+  hard:
+    pods: 4
+    services: 2
+
+    count/deployments.apps: 2
+    count/replicasets.apps: 5
+
+    requests.cpu: 2
+    requests.memory: 800Mi
+    limits.cpu: 4
+    limits.memory: 1600Mi
+==
+
+kubectl apply -f quota.yaml --dry-run=client
+kubectl apply -f quota.yaml
+kubectl get quota -n projectx
+kubectl describe quota quota -n projectx
+
+
+5. Create a custom role (devguru) which will allow the one that has it to do anything 
+with any of the following resources pods, services, deployments, and replicasets. 
+Grant the role to ivan and mariana (or to the group they belong to) 
+for the namespace created earlier
+
+vi /home/strahil/homework/devguru-role.yaml
+==
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devguru
+  namespace: projectx
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs: ["*"]
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - replicasets
+  verbs: ["*"]
+==
+
+kubectl apply -f devguru-role.yaml --dry-run=client
+kubectl apply -f devguru-role.yaml
+root@node1:/home/strahil/homework# kubectl get roles -n projectx
+NAME      CREATED AT
+devguru   2025-11-25T12:30:54Z
+
+root@node1:/home/strahil/homework# kubectl describe role devguru -n projectx
+Name:         devguru
+Labels:       <none>
+Annotations:  <none>
+PolicyRule:
+  Resources         Non-Resource URLs  Resource Names  Verbs
+  ---------         -----------------  --------------  -----
+  pods              []                 []              [*]
+  services          []                 []              [*]
+  deployments.apps  []                 []              [*]
+  replicasets.apps  []                 []              [*]
+
+
+vi /home/strahil/homework/ivan-mariana-role-bindings.yaml
+==
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devguru-ivan
+  namespace: projectx
+subjects:
+- kind: User
+  name: ivan
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: devguru
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devguru-mariana
+  namespace: projectx
+subjects:
+- kind: User
+  name: mariana
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: devguru
+  apiGroup: rbac.authorization.k8s.io
+==
+
+kubectl apply -f ivan-mariana-role-bindings.yaml
+root@node1:/home/strahil/homework# kubectl get rolebindings -n projectx
+NAME              ROLE           AGE
+devguru-ivan      Role/devguru   22s
+devguru-mariana   Role/devguru   22s
+
+strahil@node1:~$ su - ivan
+ivan@node1:~$ kubectl auth can-i create pods -n projectx
+yes
+ivan@node1:~$ kubectl auth can-i create services -n projectx
+yes
+ivan@node1:~$ kubectl auth can-i create deployments -n projectx
+yes
+ivan@node1:~$ kubectl auth can-i create replicasets -n projectx
+yes
+
+
+
+6. Using one of the two users, deploy the producer-consumer application 
+(use the attached files – you may need to modify them a bit). 
+Deploy one additional pod that will act as a (curl) client
+
+su - ivan
+
+ivan@node1:~$ cd /home/ivan/app/
+ivan@node1:~/app$ ls -al
+total 24
+drwxrwxrwx 2 root root 4096 Nov 25 15:47 .
+drwxr-xr-x 5 ivan ivan 4096 Nov 25 15:27 ..
+-rwxrwxrwx 1 root root  718 Nov 25 15:38 consumer-deployment.yml
+-rwxrwxrwx 1 root root  280 Nov 25 15:12 consumer-svc.yml
+-rwxr-xr-x 1 root root  719 Nov 25 15:47 producer-deployment.yml
+-rwxr-xr-x 1 root root  280 Nov 25 15:44 producer-svc.yml
+
+ivan@node1:~/app$ kubectl get pods -o wide -n projectx
+No resources found in projectx namespace.
+
+ivan@node1:~/app$ kubectl apply -f consumer-deployment.yml
+deployment.apps/consumer-deploy created
+ivan@node1:~/app$ kubectl apply -f consumer-svc.yml
+service/consumer created
+ivan@node1:~/app$ kubectl apply -f producer-deployment.yml
+deployment.apps/producer-deploy created
+ivan@node1:~/app$ kubectl apply -f producer-svc.yml
+service/producer created
+
+ivan@node1:~/app$ kubectl get pods -o wide -n projectx
+NAME                               READY   STATUS    RESTARTS   AGE   IP           NODE    NOMINATED NODE   READINESS GATES
+consumer-deploy-7cdf4f668c-hd9l9   1/1     Running   0          34s   10.244.1.8   node2   <none>           <none>
+consumer-deploy-7cdf4f668c-vjxc4   1/1     Running   0          34s   10.244.2.8   node3   <none>           <none>
+producer-deploy-75d57959c9-842cp   1/1     Running   0          20s   10.244.1.9   node2   <none>           <none>
+producer-deploy-75d57959c9-h5fjd   1/1     Running   0          20s   10.244.2.9   node3   <none>           <none>
+
+
+root@node1:/home/strahil# kubectl get svc -n projectx
+NAME       TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+consumer   NodePort   10.104.98.196   <none>        80:30001/TCP   110s
+producer   NodePort   10.98.22.44     <none>        80:30002/TCP   97s
+
+
+root@node1:/home/strahil/homework# kubectl describe quota quota -n projectx
+Name:                   quota
+Namespace:              projectx
+Resource                Used   Hard
+--------                ----   ----
+count/deployments.apps  2      2
+count/replicasets.apps  2      5
+limits.cpu              1600m  4
+limits.memory           1Gi    1600Mi
+pods                    4      4
+requests.cpu            800m   2
+requests.memory         512Mi  800Mi
+services                2      2
+
+
+
+
