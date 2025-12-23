@@ -37,4 +37,7 @@ and creating 5 files for 5 days each month for the 5 previous years
 # dmod_restart.sh
 - restart of some processes
 
+# test_connection_time.sh
+- test connection time via telnet for max attempts 100
+
 
