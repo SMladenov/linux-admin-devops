@@ -1,0 +1,197 @@
+
+
+
+
+vi 4-init-container.yaml
+==
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-init
+  labels:
+    app: pod-init
+spec:
+  containers:
+  - name: cont-main
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: data
+      mountPath: /usr/share/nginx/html
+  initContainers:
+  - name: cont-init1
+    image: alpine
+    command:
+      - /bin/sh
+      - -c
+      - |
+        file=/data/index.html;
+        nowdate1=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "$nowdate1 => begin initialization ..." >> $file;
+        sleep 10;
+        nowdate2=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "$nowdate2 => ... done" >> $file;
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  - name: cont-init2
+    image: alpine
+    command:
+      - /bin/sh
+      - -c
+      - |
+        file=/data/index.html;
+        nowdate3=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "$nowdate3 => launching the applications ..." >> $file;
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-init
+  labels:
+    app: svc-init
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30001
+    protocol: TCP
+  selector:
+    app: pod-init
+==
+
+kubectl apply -f 4-init-container.yaml
+kubectl get pods,nodes -o wide
+kubectl get pods -o wide -w
+root@node1:/home/strahil/homework# curl http://node2:30001
+2025-12-08 14:11:55 => begin initialization ...
+2025-12-08 14:12:05 => ... done
+2025-12-08 14:12:07 => launching the applications ...
+
+
+
+2. Ingress and TLS
+
+a. Using either NGINX or HAProxy (the implementation should not differ significantly) 
+ingress controller try to modify/extend the fan out example shown in the practice to handle TLS traffic
+
+b. Note, that you will need to create a self-signed certificate and 
+store it in a secret which then to be used in the ingress
+
+
+git clone https://github.com/nginxinc/kubernetes-ingress.git --branch v5.2.1
+cd kubernetes-ingress/deployments
+kubectl apply -f common/ns-and-sa.yaml
+kubectl apply -f rbac/rbac.yaml
+kubectl apply -f ../examples/shared-examples/default-server-secret/default-server-secret.yaml
+kubectl apply -f common/nginx-config.yaml
+kubectl apply -f common/ingress-class.yaml
+kubectl apply -f ../config/crd/bases/k8s.nginx.org_virtualservers.yaml
+kubectl apply -f ../config/crd/bases/k8s.nginx.org_virtualserverroutes.yaml
+kubectl apply -f ../config/crd/bases/k8s.nginx.org_transportservers.yaml
+kubectl apply -f ../config/crd/bases/k8s.nginx.org_policies.yaml
+kubectl apply -f ../config/crd/bases/k8s.nginx.org_globalconfigurations.yaml
+
+kubectl apply -f deployment/nginx-ingress.yaml
+kubectl create -f service/nodeport.yaml
+root@node1:/home/strahil/homework/kubernetes-ingress/deployments# kubectl get service -n nginx-ingress
+NAME            TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)                      AGE
+nginx-ingress   NodePort   10.107.4.215   <none>        80:30345/TCP,443:32388/TCP   10s
+
+
+openssl genrsa -out ingress.key 2048
+openssl req -new -key ingress.key -out ingress.csr -subj "/CN=demo.local/O=demo.local/C=BG/ST=Sofia"
+openssl req -in ingress.csr -noout -subject
+openssl x509 -req -days 365 -in ingress.csr -signkey ingress.key -out ingress.crt
+root@node1:/home/strahil/homework# openssl x509 -in ingress.crt -noout -dates -subject
+notBefore=Dec  9 08:42:34 2025 GMT
+notAfter=Dec  9 08:42:34 2026 GMT
+subject=CN = demo.local, O = demo.local, C = BG, ST = Sofia
+
+
+#We must create TLS secret for Ingress TLS to work
+
+root@node1:/home/strahil/homework# kubectl create secret tls ingress-tls \
+> --cert=ingress.crt \
+> --key=ingress.key
+
+root@node1:/home/strahil/homework# kubectl get secret
+NAME          TYPE                DATA   AGE
+ingress-tls   kubernetes.io/tls   2      14s
+
+
+kubectl apply -f pod-svc-1.yaml
+kubectl apply -f pod-svc-2.yaml
+kubectl get pods,nodes,svc -o wide
+
+
+vi 4-nginx-fan-out.yaml
+==
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-ctrl
+  annotations:
+    nginx.org/rewrites: "serviceName=service1 rewrite=/;serviceName=service2 rewrite=/"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - ingress.lab
+    secretName: ingress-tls
+  rules:
+  - host: ingress.lab
+    http:
+      paths:
+      - path: /service1
+        pathType: Prefix
+        backend:
+          service:
+            name: service1
+            port:
+              number: 80
+      - path: /service2
+        pathType: Prefix
+        backend:
+          service:
+            name: service2
+            port:
+              number: 80
+==
+
+kubectl apply -f 4-nginx-fan-out.yaml
+echo '192.168.100.101 ingress.lab' | sudo tee -a /etc/hosts
+
+root@node1:/home/strahil/homework# curl -k https://ingress.lab:32388/service1
+<html>
+<head>
+</head>
+<body>
+<h4>Environment Landscape</h4>
+<small><i>Filtered by name (starting with <b>TOPOLOGY</b>)</i></small><br /><br />
+TOPOLOGY => POD1 -> SERVICE1 <br />
+<br /><hr /><br />
+<small><i>Working on <b>pod1</b></i></small>
+</body>
+</html>
+root@node1:/home/strahil/homework# curl -k https://ingress.lab:32388/service2
+<html>
+<head>
+</head>
+<body>
+<h4>Environment Landscape</h4>
+<small><i>Filtered by name (starting with <b>TOPOLOGY</b>)</i></small><br /><br />
+TOPOLOGY => POD2 -> SERVICE2 <br />
+<br /><hr /><br />
+<small><i>Working on <b>pod2</b></i></small>
+</body>
+</html>
+
+

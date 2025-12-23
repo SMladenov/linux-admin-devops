@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-init
+  labels:
+    app: pod-init
+spec:
+  containers:
+  - name: cont-main
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: data
+      mountPath: /usr/share/nginx/html
+  initContainers:
+  - name: cont-init1
+    image: alpine
+    command:
+      - /bin/sh
+      - -c
+      - |
+        file=/data/index.html;
+        nowdate1=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "$nowdate1 => begin initialization ..." >> $file;
+        sleep 10;
+        nowdate2=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "$nowdate2 => ... done" >> $file;
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  - name: cont-init2
+    image: alpine
+    command:
+      - /bin/sh
+      - -c
+      - |
+        file=/data/index.html;
+        nowdate3=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "$nowdate3 => launching the applications ..." >> $file;
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-init
+  labels:
+    app: svc-init
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30001
+    protocol: TCP
+  selector:
+    app: pod-init
