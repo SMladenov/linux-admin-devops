@@ -1,0 +1,68 @@
+#Task1
+
+#Template for sed
+==
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: %namespace%
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %deploymentName%
+  namespace: %namespace%
+spec:
+  replicas: %replicas%
+  selector:
+    matchLabels:
+      app: hw
+  template:
+    metadata:
+      labels:
+        app: hw
+    spec:
+      containers:
+      - image: shekeriev/k8s-oracle
+        name: homework
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: hw
+  name: homework-svc
+  namespace: %namespace%
+spec:
+  ports:
+  - port: 5000
+    nodePort: %nodeport%
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    app: hw
+  type: NodePort
+==
+
+
+root@node1:/home/strahil/task1# grep -ie '.*%.*%' homework.yaml
+  name: %namespace%
+  name: %deploymentName%
+  namespace: %namespace%
+  replicas: %replicas%
+  namespace: %namespace%
+    nodePort: %nodeport%
+
+
+root@node1:/home/strahil/task1# sed -e 's/%namespace%/homework/' \
+-e 's/%deploymentName%/deploymenthomework/' \
+-e 's/%replicas%/3/' \
+-e 's/%nodeport%/30001/' homework.yaml >> homework_edited.yaml
+
+kubectl apply -f homework_edited.yaml --dry-run=client
+kubectl apply -f homework_edited.yaml
+
+kubectl get pods,svc,deployments -n homework
+curl http://node1:30001
+
+

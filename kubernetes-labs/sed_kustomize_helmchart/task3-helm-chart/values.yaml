@@ -1,0 +1,3 @@
+replicasCount: 2
+defaultText: "Helm Charts! :)"
+nodePort: 30001

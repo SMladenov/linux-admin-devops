@@ -1,0 +1,100 @@
+#Task2
+
+mkdir -pv overlays/{test,production}
+vi /home/strahil/task2/kustomization.yaml
+==
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - task2app.yaml
+==
+
+
+kustomize build .
+vi overlays/test/kustomization.yaml
+==
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namePrefix: test-
+labels:
+- includeSelectors: true
+  pairs:
+    variant: test
+resources:
+- ../../base
+patches:
+#- path: custom-env.yaml
+- path: custom-rs.yaml
+- path: custom-np.yaml
+==
+
+
+vi overlays/production/kustomization.yaml
+==
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namePrefix: production-
+labels:
+- includeSelectors: true
+  pairs:
+    variant: production
+resources:
+- ../../base
+patches:
+#- path: custom-env.yaml
+- path: custom-np.yaml
+- path: custom-rs.yaml
+==
+
+
+vi overlays/test/custom-rs.yaml
+==
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homework
+  namespace: homework
+spec:
+  replicas: 3
+==
+
+vi overlays/production/custom-rs.yaml
+==
+  replicas: 5
+==
+
+
+vi overlays/test/custom-np.yaml
+==
+apiVersion: v1
+kind: Service
+metadata:
+  name: homework-svc
+  namespace: homework
+spec:
+  ports:
+  - nodePort: 30002
+    port: 5000
+    protocol: TCP
+==
+
+
+vi overlays/production/custom-np.yaml
+==
+  - nodePort: 30003
+==
+
+mkdir -v base
+mv kustomization.yaml base/
+mv task2app.yaml base/
+
+kustomize build overlays/test/ | kubectl apply -f -
+curl http://node1:30002
+kustomize build overlays/test/ | kubectl delete -f -
+kubectl get pods,svc,deployments -n homework
+
+kustomize build overlays/production/ | kubectl apply -f -
+kubectl get pods,svc,deployments -n homework
+curl http://node1:30003
+kustomize build overlays/production/ | kubectl delete -f -
+

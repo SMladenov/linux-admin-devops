@@ -1,0 +1,108 @@
+#Task3
+
+mkdir -pv webchart/templates
+touch webchart/{Chart.yaml,values.yaml} webchart/templates/{cm.yaml,pod.yaml,svc.yaml}
+tree webchart
+
+vi webchart/Chart.yaml
+==
+apiVersion: v2
+name: webchart
+description: A simple Nginx-based Helm chart for Kubernetes
+
+# Chart type. A chart can be either an 'application' or a 'library' chart
+type: application
+
+# Version of the chart
+version: 0.1.0
+
+# Version of the application. In our case - Apache 2.4.51
+appVersion: "To be written"
+==
+
+
+mv webchart/templates/pod.yaml webchart/templates/deployment.yaml
+
+
+vi webchart/templates/cm.yaml
+==
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webchart-cm
+data:
+  index.html: |
+    <h1>{{ .Values.defaultText }}</h1>
+    <img src="https://cataas.com/cat" />
+==
+
+
+ls -al webchart/templates/svc.yaml
+vi webchart/templates/svc.yaml
+==
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-service
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: {{ .Values.nodePort }}
+    protocol: TCP
+  selector:
+    app: {{ .Release.Name }}
+==
+
+
+vi values.yaml
+==
+replicasCount: 2
+defaultText: "Helm Charts! :)"
+nodePort: 30001
+==
+
+
+vi deployment.yaml
+==
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-deployment
+spec:
+  replicas: {{ .Values.replicasCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: main
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: webchart-cm
+==
+
+helm show chart webchart_task3
+helm install apphomework webchart_task3
+helm list
+helm get manifest apphomework
+kubectl get cm,pods,svc,deployment
+root@node1:/home/strahil# curl http://node1:30001
+<h1>Helm Charts! :)</h1>
+<img src="https://cataas.com/cat" />
+root@node1:/home/strahil#
+
+helm uninstall apphomework
+
+
