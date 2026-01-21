@@ -40,4 +40,7 @@ and creating 5 files for 5 days each month for the 5 previous years
 # test_connection_time.sh
 - test connection time via telnet for max attempts 100
 
+# gen_privatekey_csr.sh
+- generates private rsa key 2048 or 4096 and csr ready for signature
 
+ 
