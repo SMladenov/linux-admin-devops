@@ -47,4 +47,7 @@ and creating 5 files for 5 days each month for the 5 previous years
 - given 1 parameter as directory, or none it will scan the default certificates directories and 
 will produce report on what is expiring or not in the next 30 days
 
- 
+# generating_logs.sh
+- script generating logs for 5 to 28 days in the current month with actual content, it's purpose is to generate logs in order to test our log rotation script
+
+
