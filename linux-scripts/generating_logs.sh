@@ -48,6 +48,8 @@ fi
 
 for day in $(seq -w 1 "$1"); do
 
+	day=$(printf "%02d" "$day")
+
 	filename=log_"$year"_"$month"_"$day".log
 
 	if [ -f "$directory_path""$filename" ]; then
