@@ -48,7 +48,11 @@ fi
 
 for day in $(seq -w 1 "$1"); do
 
-	day=$(printf "%02d" "$day")
+	#Or use a C style loop and keep this
+	#day=$(printf "%02d" "$day")	
+
+	#We must force decimal number interpretation
+	day=$(printf "%02d" $((10#$day)))
 
 	filename=log_"$year"_"$month"_"$day".log
 
