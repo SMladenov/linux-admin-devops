@@ -50,4 +50,8 @@ will produce report on what is expiring or not in the next 30 days
 # generating_logs.sh
 - script generating logs for 5 to 28 days in the current month with actual content, it's purpose is to generate logs in order to test our log rotation script
 
+# rotate_log.sh
+- script for rotating logs, accepting 2 parameters - path and days for retention, example usage:
+./rotate_l.sh --path /home/vagrant/logs/ --days 11 >> /home/vagrant/logs/output.txt
+
 
