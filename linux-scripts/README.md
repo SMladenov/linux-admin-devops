@@ -54,4 +54,7 @@ will produce report on what is expiring or not in the next 30 days
 - script for rotating logs, accepting 2 parameters - path and days for retention, example usage:
 ./rotate_l.sh --path /home/vagrant/logs/ --days 11 >> /home/vagrant/logs/output.txt
 
+# send_mail_statistics
+- This is a structure of scripts which gather statistics for different OS parameters such as disk usage, inodes, load average and send an e-mail notification when tresholds are exceeded, more information in send_mail_statistics/README.md
+
 
