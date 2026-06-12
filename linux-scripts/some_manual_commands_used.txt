@@ -1,0 +1,572 @@
+
+#destination='/home/dmuser/load/rings_in/err/2022/month10/' ; find /home/dmuser/load/rings_in/err/ -maxdepth 1 -type f -newermt '2022-10-01' ! -newermt '2022-11-01' -exec mv {} "$destination" \;
+
+#destination='/home/dmuser/load/rings_in/err/2022/month12/' ; -exec mv {} "$destination" \;
+
+#find /home/dmuser/load/rings_in/err/ -maxdepth 1 -type f -newermt '2022-10-01' ! -newermt '2022-11-01' -exec ls -al {} \;
+
+#destination='/home/dmuser/load/rings_in/skip/2023/month12/' ; find /home/dmuser/load/rings_in/skip/ -maxdepth 1 -type f -newermt '2023-12-01' ! -newermt '2023-12-31' -exec mv {} "$destination" \;
+
+#destination='/home/dmuser/load/statements/stmt_files_archive/STMT/2022/month12/' ; find /home/dmuser/load/statements/stmt_files_archive/ -maxdepth 1 -type f -newermt '2022-12-01' ! -newermt '2023-12-31' -name 'STMT_BG*_202212*' -exec mv {} "$destination" \;
+
+#find /home/dmuser/load/statements/stmt_files_archive/ -maxdepth 1 -type f -newermt '2023-12-01' ! -newermt '2023-12-31' -name 'STMT_BG*_202312*' | wc -l
+
+#for i in {1..12} ; do echo "File count for year 2022 and month $i is: " ; ls STMT/2022/month$i | wc -l ; done
+
+#for i in {1..11} ; do destination="/home/dmuser/load/depozitar/arh/2022/month$i/" ; find /home/dmuser/load/depozitar/arh/ -maxdepth 1 -type f -newermt "2022-$i-01" ! -newermt "2022-$((i + 1))-01" -exec mv {} "$destination" \; ; done
+
+#total=0 ; for i in {1..12} ; do count3=$(ls vnbel-multi/2022/month$i | wc -l) ; total=$((total + count3)) ; done ;for i in {1..12} ; do count2=$(ls vnbel-virtb/2022/month$i | wc -l) ; total=$((total + count2)) ; done ;for i in {1..12} ; do count=$(ls reg-micros/2022/month$i | wc -l) ; total=$((total + count)) ; done ; echo "Total for 2022 is $total"
+
+
+Copy Without Overwrite, Copy only not existing files:
+for i in $(pwd)/testfiles/* ; do if [ ! -f $(pwd)/testfile2/$(basename $i) ]; then cp $i $(pwd)/testfile2/$(basename $i) ; fi ; done
+
+find . -type f -exec grep -q -i -E 'oraclegr19|ccbgr19' {} \; -exec echo "File path: {}" {}  \; -exec ls -al {} \;
+#You can use this syntax to search for multiple filenames at the sametime -> -type f \( -name "*.crt" -o -name "*.pem" \)
+
+#find command
+-mmin +2 -> modification time older than 2 minutes
+-mtime +2 -> modification time older than 2 days
+
+###Explanation about special bash variables###
+
+#!/bin/bash
+
+# Display the script name
+echo "Script name: $0"
+
+# Display the first parameter
+echo "First parameter: $1"
+
+# Display the second parameter
+echo "Second parameter: $2"
+
+# Display all parameters
+echo "All parameters: $@"
+
+# Count the number of parameters
+echo "Number of parameters: $#"
+
+#Exit code
+echo "Exit code: $?"
+
+#Debugging
+set -x   # start debugging
+# suspicious code here
+set +x   # stop debugging
+
+set -xe
+#-x → print commands
+#-e → exit immediately if a command fails
+
+
+find . -type f -name '*.tar.gz' -newermt "2024-01-01" ! -newermt "2025-01-01" -printf "%T+ %p\n" | sort
+
+#Sed command for filtering logs ',' is between two pattern matches
+sed -n -e '/^202402211625/,/^2024022117/ p' < global.log > g.log
+sed -n -e '/^2025-03-26 15:29/,/^2025-03-26 15:48/ p' < messages.txt > messages-filtered.txt
+
+sed -ei 's/old/new/g' file.txt -> substitute, pattern, replacement, each match on the line, save it
+sed 's/pattern/replacement/' file.txt
+sed '1,100s/[0-9]/#/g' file.txt -> from lines, substitute, pattern, replacement, each match on the line
+sed -n '/202504081100/,/202504081239/ { /ERROR/,/^\ *$/p }' logfile.txt
+
+#Custom Output Field Separator + changing default separator ' '
+awk -F',' 'BEGIN { OFS=" | " } { print $1, $2 }' file.csv
+awk -F'[ \t]+' '{ print $1, $2 }' file.txt
+
+
+#Vi editor
+echo "set mouse=" | tee -a ~/.vimrc
+yy, p -> copy current line, paste it with p
+dd -> delete current line
+:set number
+:set nonumber
+:2,6y -> copy lines from 2 incl. to 6 incl. -> p for paste
+2G -> Go to 2nd line
+$ -> Go to the end of the line
+^ -> Go to the start of the line
+:18,20d -> delete lines from 18 incl. to 20 incl.
+h,j,k,l -> left,down,up,right
+y5j -> copy the current line + the next 5 lines (total 6) -> p for paste
+V -> to enter visual and to mark them
+3dd -> delete the current line + 2 more (3 in total)
+u -> undo changes
+gg -> start of file
+G -> end of file
+:10 -> go to line 10
+
+:10,20s/line/linee/g -> from 10 incl to 20 incl
+:%s/line/linee -> replace all, only first occurance on the line if there more
+:%s/linee/line/g -> replace all, including all occurances on each line
+:%s/line/linee/gc -> confirm each
+:g/tenth/d -> delete all lines containing "tenth"
+.,$s/line/linee/g -> current to end
+
+
+#UFW and Firewalld and nmcli
+sudo apt install ufw
+sudo ufw enable
+sudo ufw status
+sudo ufw allow ssh
+sudo ufw allow http
+sudo ufw allow 8443
+sudo ufw disable
+
+sudo firewall-cmd --state
+sudo firewall-cmd --get-active-zones
+sudo firewall-cmd --get-zones
+sudo firewall-cmd --list-all --zone internal
+sudo firewall-cmd --list-all --zone external
+sudo firewall-cmd --get-default-zone
+sudo firewall-cmd --change-interface enp0s3 --zone internal
+sudo firewall-cmd --set-default-zone internal
+sudo firewall-cmd --remove-service={mdns,samba-client} --permanent
+sudo firewall-cmd --reload
+sudo firewall-cmd --list-all
+sudo firewall-cmd --add-service={mdns,samba-client} --permanent
+sudo firewall-cmd --list-services --zone public
+cat /proc/sys/net/ipv4/ip_forward
+sudo firewall-cmd --zone=external --add-masquerade --permanent
+sudo firewall-cmd --add-port=50022/tcp --permanent
+sudo firewall-cmd --zone=external --add-forward-port=port=12345:proto=tcp:toport=50022:toaddr=192.168.200.100 --permanent
+sudo firewal-cmd --reload
+
+nmcli general status
+nmcli connection show
+sudo nmcli connection del "enp0s8"
+nmcli conn
+sudo nmcli connection add type ethernet ifname enp0s8 con-name static-internal
+ls -al /etc/sysconfig/network-scripts/ifcfg-static-internal
+sudo nmcli connection modify static-internal ipv4.addresses 192.168.200.1/24 ipv4.method manual
+sudo nmcli connection down static-internal ; sudo nmcli connection up static-internal
+nmcli connection show static-internal	
+nmcli device status / show
+sudo nmcli connection modify static-internal ipv4.gateway 192.168.200.1
+sudo nmcli connection modify enp0s8 ipv4.dns 8.8.8.8
+sudo nmcli connection modify enp0s3 connection.zone external
+sudo nmcli connection modify static-internal connection.zone internal
+
+
+#SSH
+
+echo 'jenkins ALL=(ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/jenkins
+
+#Can be 2048, 4096, etc.
+ssh-keygen -t rsa -b 3072 -N "" -f /var/lib/jenkins/.ssh/id_rsa
+ssh-keyscan -H 192.168.100.10{1..2} >> ~/.ssh/known_hosts
+sudo apt install sshpass -y
+
+sshpass -p '123' ssh-copy-id -i /var/lib/jenkins/.ssh/id_rsa.pub jenkins@192.168.100.101
+sshpass -p '123' ssh-copy-id -i /var/lib/jenkins/.ssh/id_rsa.pub jenkins@192.168.100.102
+
+ssh 'jenkins@192.168.100.102'
+ssh 'jenkins@192.168.100.101'
+
+
+
+###Git Commands###
+#git diff
+git diff <file> #shows local unstaged changes (if modified locally, but not git add .)
+
+git show HEAD:<file> #shows the entire file as it was in the last commit in your local repo
+
+git diff HEAD -- <file> #compares the current file with the last commit in your local repo
+
+git diff HEAD@{1} HEAD -- <file> #latest local pull vs the previous HEAD position on your local machine
+
+git diff test..master <file> -> #+ shows additions in master compared to test, - shows deletions in master
+git diff master..test <file> -> #+ shows additions in test compared to master, - shows deletions in test
+git diff test..master -- <file>
+git diff HEAD..origin/master
+git diff master..origin/master
+
+
+
+#If problem with a file after a pull or can't pull
+git checkout HEAD -- <file> #restores the file to the latest committed version 
+in your local repository, not directly from the remote repository.
+
+git restore <file> #same
+git checkout -- <file> #same
+
+git checkout <branch> -> #switch the branch and pull the changes
+git switch <branch> -> #switch the branch
+
+git add <file> -> #stages the file (prepares it to be commited) (Mark it as fix conflict)
+git checkout HEAD -- <file1> <file2> -> #If you successfully pulled after git add the HEAD will be the last pull
+git restore --staged <file> -> #After editing the file and marked it resolved this is unstaging the file 
+
+git reset -> #Unstage
+git reset --merge -> #disregards the pulled-in merge and returns you to your last working state before the merge
+git reset --merge <id> -> #disregards the pulled-in merge and returns you to the current merge <id>
+git reset --merge HEAD^ -> #HEAD^ means the parent of that commit — 
+			    typically "one commit before HEAD" or the previous state on your branch
+			    moves branch back one commit and aborts any merge changes
+
+git merge <commit-id> -> merge a specific commit (by its hash) into your current branch, doesn't Move HEAD
+git reset --soft <commit-id>	-> Move HEAD to commit, keep all changes staged
+git reset --mixed <commit-id>	-> Move HEAD to commit, unstage changes but keep in working dir
+git reset --hard <commit-id>	-> Move HEAD to commit, discard all changes in index and working tree
+
+git branch -r #list all branches
+git branch -a
+
+#To check the configurations
+git config --global/local/system --list
+#Example setting values
+git config --global/local/system http.sslverify=false/true
+				 user.name ""
+				 user.email ""
+
+
+#If we don't want to lose local stuff when conflict with pulling
+git stash && git pull && git stash pop #Stashes all local changes
+
+git stash list
+git stash show #Shows a summary (just filenames) of what's in the stash
+git stash show -p
+git stash show -p <stash@{0}> 
+#Diff what was saved to the stash at the time the stash was created compared to
+#the previous commit at the time of the stash
+
+git stash pop <stash@{0}> #Apply + Delete
+git stash drop <stash@{0}> #Delete one stash without Applying
+git stash drop
+git stash clear #Deletes all stashes without Applying
+
+git stash push <file> #Only used for 1 file
+git stash push <file> <file>
+
+#To check the remote repository if we're up to date without pulling anything
+git fetch
+git status
+# or
+git log HEAD..origin/stage --oneline
+git log
+git log -p <file>
+git log origin/main..HEAD
+git log --oneline origin/main..HEAD
+#show what files actually are added and commited without pushed
+git show --name-only
+
+
+#If you really don't need your local changes at all
+git fetch
+git reset --hard origin/your-branch #This forcefully resets your working directory to match the remote branch
+
+#Git pull didn't work purely as we switched branches
+#If you wish to set tracking information for this branch you can do so with:
+git branch --set-upstream-to=origin/test_euro test_euro
+
+
+#SSL Certificate Check
+
+#Check what certificate is returning the specific domain
+#</dev/null is used to close stdin interactive connection to server not to wait for input
+
+openssl s_client -connect webapi.ccbank.bg:443 </dev/null | openssl x509 -noout -dates -issuer -subject
+#If different than pem as pem is the default one
+openssl x509 -inform <cert type>
+
+curl --cert /usr/local/remedy2/SYS/virtb/CORE/etc/inotary/ccb.crt --key /usr/local/remedy2/SYS/virtb/CORE/etc/inotary/ccb.key -vvv https://d.inotary.bg:55555
+curl --cert /home/dmt2/etc/certs/Test-web.pem --cacert /home/dmt2/etc/certs/trusted.pem -vvv https://192.168.100.107:443/pe/eurbulk
+
+sudo dnf install mod_ssl openssl
+openssl genrsa -out ca.key 2048 (generate private key)
+openssl req -new -key ca.key -out ca.csr (with this key we will request certificate signing request (csr))
+#Enter all the data
+#To inspect a CSR
+openssl req -in ca.csr -noout -text
+ls
+openssl x509 -req -days 365 -in ca.csr -signkey ca.key -out ca.crt (Issuing and signing a self-signed certificate)
+openssl x509 -text -in ca.crt
+openssl x509 -in certificate.crt -text -noout
+===============================
+To separate a .pfx file into a private key (.key) and certificate (.pem)
+Extract the Private Key:
+openssl pkcs12 -in yourfile.pfx -nocerts -out extracted.key -nodes #(-nodes: Prevents encryption of the private key.)
+ Extract the Certificate:
+ openssl pkcs12 -in yourfile.pfx -clcerts -nokeys -out extracted.pem
+ Optional: Extract CA Certificates (If Needed):
+ openssl pkcs12 -in yourfile.pfx -cacerts -nokeys -out ca-certificates.pem
+ Verify the Outputs:
+ Test the private key:
+ openssl rsa -in yourname.key -check
+ View certificate details:
+ openssl x509 -in cert.pem -text -noout
+ Update Certificate Store:
+ sudo update-ca-certificates 
+ #(This command scans /usr/local/share/ca-certificates/ and /etc/ssl/certs/ for certificates and updates the /etc/ssl/certs/ca-certificates.crt file.)
+==============================
+
+Check if the key matches the certificate:
+root@ApplePay:/etc/ssl/private/2025_cert# openssl rsa -noout -modulus -in ApplePay.ccbank.key | openssl md5
+(stdin)= 18bca1d81bed134cf66dd27e8b6369a7
+root@ApplePay:/etc/ssl/private/2025_cert# openssl x509 -noout -modulus -in borika.prod.pem | openssl md5
+(stdin)= 18bca1d81bed134cf66dd27e8b6369a7
+openssl req -noout -modulus -in webapiInfoNotary-25-26.csr | openssl md5
+
+Other Checks and Verifications for the Private Key and CSR:
+openssl req -text -noout -verify -in webapiInfoNotary-25-26.csr
+openssl rsa -check -in webapiInfoNotary-25-26.key
+
+If the certificate requires an intermediate CA, verify the chain:
+openssl verify -CAfile ca-bundle.crt webapiInfoNotary-25-26.crt
+
+Best Way to Check for Multiple Certificates:
+openssl crl2pkcs7 -nocrl -certfile cert.pem | openssl pkcs7 -print_certs -noout
+
+Or the whole command to request a CSR:
+openssl req -nodes -newkey rsa:2048 -keyout webapiInfoNotary-25-26.key -out webapiInfoNotary-25-26.csr -subj "/C=BG/ST=Sofia/L=Sofia/O=Central Cooperative Bank AD/CN=webapi.ccbank.bg"
+
+
+#stdin stdout stderr
+#0 1 2
+command 1> stdout.log
+command 1> stdoutAndStderr.log 2>&1
+command 1>> allAppend.log 2>&1
+command 1>> stdout.log 2>> stderror.log
+command >> log.txt 2>&1 </dev/null
+#stdout → goes through pipe
+#stderr → goes to terminal directly
+#So without 2>&1, telnet error messages do NOT go through the pipe.
+
+
+#Systemd on root and user level
+/lib/systemd/system/ -> Package-provided system-wide unit files -> root
+~/.config/systemd/user/ -> User-defined unit files -> That specific user
+/lib/systemd/user/ -> Package-provided user unit files -> Unprivileged users
+
+#Manually add repo
+sudo nano /etc/yum.repos.d/myrepo.repo
+###
+[myrepo]
+name=My Custom Repo
+baseurl=https://example.com/repo/
+enabled=1
+gpgcheck=1
+gpgkey=https://example.com/repo/RPM-GPG-KEY
+#Or without gpgcheck=0 and without gpgkey
+###
+dnf clean all
+dnf repolist
+dnf repolist all
+
+#Or
+dnf install dnf-plugins-core
+dnf config-manager --add-repo https://example.com/my.repo
+#Installing package from it
+sudo dnf install hello-lsa
+sudo dnf install --nogpgcheck hello-lsa
+#Or install it from a specific repository exactly
+sudo dnf install --disablerepo="*" --enablerepo="your-repo-id" package-name
+#--disable and --enable is only during the dnf command
+
+
+# set DBUS_SESSION_BUS_ADDRESS variable
+
+if [ -z "$XDG_RUNTIME_DIR" ]; then
+  export XDG_RUNTIME_DIR="/run/user/$UID"
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+fi
+#Check also for
+#Keep your user services running even when you are not logged in
+sudo loginctl show-user $(whoami) | grep Linger
+sudo loginctl enable-linger $(whoami)
+systemctl --user daemon-reload
+
+
+###Input Operators###
+Operator	Meaning	 Use Case
+<	Input from file	 sort < file.txt
+<<	Heredoc (block)	 cat <<EOF | sudo tee -a <file> ... EOF
+<<<	Here string	 read var <<< "value"
+
+
+#Debug ssh
+ssh -v git@axis.datamax.bg git fetch
+
+#Account specific commands
+passwd -l <user> / usermod -L <user> -> Lock account
+passwd -u <user> / usermod -U <user> -> Unlock account
+passwd -S <user> / grep '^username:' /etc/shadow -> Check lock status
+chage -l <user> -> View password aging
+chage -M <days> <user> / passwd -x <days> <user> -> Set expiration maximum days
+chage -m <days> <user> / passwd -n <days> <user> -> Minimum days between changes
+chage -W <days> <user> / passwd -w <days> <user> -> Warning before expiration
+chage -E 2025-12-31 <user> -> Set expiration date
+
+#Change user UID
+
+
+
+#Pure tar (not compressed)
+sudo tar -c -v -f etc.tar /etc
+#GZ
+sudo tar -c -v -z -f etc.tar.gz /etc
+#bzip2
+sudo tar -c -v -j -f etc.tar.bz2 /etc
+#XZ
+sudo tar -c -v -J -f etc.tar.XZ /etc
+for i in /home/strahil/etc* ; do ls -al $i ; du -h $i ; done
+ls -lhs
+
+#List the content of an archive
+tar -tvf etc.tar
+tar -tzvf etc.tar.gz
+#List only specific files or folders from the archive 
+tar -tzvf etc.tar.gz etc/spefific/file1
+
+
+#Extract an archive
+mkdir -p /home/strahil/extract/tar/ ; tar -x -v -f etc.tar -C /home/strahil/extract/tar/
+#Extract gz
+mkdir -p /home/strahil/extract/gzip/ ; tar -x -v -z -f etc.tar.gz -C /home/strahil/extract/gzip/
+etc...
+#Extract only specific files or folders from the archive
+tar -x -v -z -f etc.tar.gz etc/spefific/file1 -C /home/strahil/extract/gzip/
+
+
+#TOP command
+load average: 0.00, 0.00, 0.00 -> 1 min, 5min, 15 min average system load
+			       -> Load -> number of processes that are either:
+					  running on CPU
+					  waiting for CPU (or I/O)
+#1 CPU core should server 1 process at a time, and to have no waiting
+
+nproc -> check the number of CPUs
+cat /proc/cpuinfo
+#Let's say we have 2 CPUs:
+0.00 -> idle
+1.00 -> half utilized
+2.00 -> fully utilized
+>2.00 -> overloaded(processes waiting)
+
+#zombie process
+- A process that has finished execution, but its parent has NOT yet read its exit status
+ps aux | grep Z
+#fix is: someone has to call wait() to the kernel to receive an exit status for child process
+systemctl restart service
+kill -9 <parent_pid>
+
+#%Cpu(s):  0.0 us,  0.2 sy,  0.0 ni, 99.8 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+us -> User CPU -> Time spent running applications (nginx, java, python) -> High us = app-heavy workload
+sy -> System CPU -> Time spent in kernel (syscalls, disk/network handling) -> High sy = kernel doing work (I/O, drivers)
+id -> Idle -> CPU usage ≈ 100 - id
+wa -> I/O wait (VERY IMPORTANT) -> CPU is idle BUT waiting for disk -> High wa = storage problem
+st -> Steal time (VERY IMPORTANT for VMs) -> CPU time taken by hypervisor -> High st means:
+					  -> your VM is not getting CPU
+					  -> host machine is overloaded
+
+
+#Inodes
+An inode is a data structure that stores metadata about a file
+- file size, permissions, owner (UID/GID), timestamps (created, modified, accessed), pointers to disk blocks (where data is stored)
+
+Filesystem has a limited number of inodes
+- You can run out of disk space OR inodes
+
+Why inodes get exhausted:
+- Many small files -> logs, cache files, temp files, mail queues
+
+df -hTi
+du --max-depth=1 -h 2>/dev/null / --inodes --total
+for dir in /*; do echo -n "$dir: " ; find "$dir" -xdev -type f 2>/dev/null | wc -l; echo "" ; done
+
+A file can be deleted but still be used in a process and the inode still exists
+lsof
+lsof | grep deleted
+lsof -i :443
+lsof -i :80
+lsof -i :8443
+ps aux | grep -i nginx
+lsof -p 40166
+lsof /var/log/nginx/vhost-port-access.log
+lsof -u vagrant
+
+
+#GRUB
+shift esc
+
+- resetting root password
+'e'
+linux /boot/vmlinuz-... root=UUID=... ro quiet -> change to:
+linux /boot/vmlinuz-... root=UUID=... rw init=/bin/bash
+ctrl x OR F10
+#The system should boot into a root shell without a password
+passwd
+
+mount -l
+#If the filesystem is not rw
+mount -o remount,rw /
+passwd
+
+#Reboot normally
+exec /sbin/init OR reboot -f
+
+
+#Kernel Panic
+#Initiate a simulation of kernel panic
+echo c | sudo tee /proc/sysrq-trigger
+#Restart the VM and enter GRUB
+
+#1. Try to boot from older kernel
+
+#2. Use Recovery Mode on the problem kernel
+
+#Remount the filesystem if necessary and writable
+mount -o remount,rw /
+mount -l | grep -ie '/dev/sda'
+journalctl -xb
+#Rebuild initramfs
+update-initramfs -u -k $(uname -r)
+#OR reinstall kernel
+apt reinstall linux-image-$(uname -r)
+
+reboot
+
+#3. Recovery Method 3: Manual GRUB Editing
+#Edit this line
+linux /boot/vmlinuz-... root=UUID=... ro quiet
+#Add
+systemd.unit=rescue.target
+#OR
+systemd.unit=emergency.target
+#Debug boot
+#Remove 'quiet' Add 'debug'
+
+#4. Simulate broken fstab
+#Wrong entry and reboot
+/dev/sda999 /mnt/test ext4 defaults 0 0
+
+#Emergency mode
+#Remount the filesystem if necessary and writable
+mount -o remount,rw /
+#Edit the fstab
+mount -a
+reboot
+
+
+#NFS Server on Debian
+root@nfs:/home/vagrant# usermod -aG sudo strahil
+apt update -y && apt upgrade -y
+root@nfs:/home/strahil# apt install nfs-kernel-server -y
+root@nfs:/home/strahil# sudo nfsconf --set nfsd vers3 n
+
+#root@nfs:/home/strahil# less /etc/nfs.conf
+
+root@nfs:/home/strahil# systemctl enable --now nfs-server
+root@nfs:/home/strahil# systemctl restart nfs-server
+
+sudo systemctl mask --now rpcbind.service rpcbind.socket rpc-statd.service
+#ss -4ntl #(secure socket port listing) - should be only 2049 for nfs4
+
+mkdir -pv /data/nfs/k8sdata
+chmod 777 /data/nfs/k8sdata
+echo '/data/nfs/k8sdata *(rw)' | tee -a /etc/exports
+
+echo 'Apply the export'
+exportfs -rav
+
+
