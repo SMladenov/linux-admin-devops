@@ -53,10 +53,13 @@ for value in {1..18}; do
 
 	#echo -e "\nidle_alerts: $idle_alerts\nwa_alerts: $wa_alerts\nCounter_load_15: $load_15_min_alerts\nCounter_load_5: $load_5_min_alerts\n"
 	
-	#Write some logging	
+	#Write some logging
+	top_3_cpu_processes=$(ps aux --sort=-%cpu | head -n 4)
+	top_3_mem_processes=$(ps aux --sort=-%mem | head -n 4)	
 	date_for_log=$(date +"%Y-%m-%d %H:%M:%S")
 	text_for_log=$(cat <<EOF
-===
+
+===========================
 $date_for_log
 1. load
 load_5_min: $load_5
@@ -67,7 +70,14 @@ $idle_array
 
 3. wa
 $wa_array
-===
+
+4. top 3 cpu processes
+$top_3_cpu_processes
+
+5. top 3 mem processes
+$top_3_mem_processes
+===========================
+
 
 EOF
 )
